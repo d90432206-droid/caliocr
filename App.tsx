@@ -66,6 +66,18 @@ export const CATEGORY_LABELS: Record<string, string> = {
   digital_pressure: '數字壓力計 Digital'
 };
 
+export const UNIT_OPTIONS: Record<string, string[]> = {
+  dc_voltage: ['mV', 'V', 'kV'],
+  dc_current: ['μA', 'mA', 'A'],
+  ac_voltage: ['mV', 'V', 'kV'],
+  ac_current: ['μA', 'mA', 'A'],
+  resistance: ['mΩ', 'Ω', 'kΩ', 'MΩ'],
+  power: ['mW', 'W', 'kW'],
+  temperature: ['℃', 'Ω'],
+  pressure: ['Pa', 'kPa', 'MPa'],
+  diff_pressure: ['Pa', 'kPa', 'MPa'],
+  digital_pressure: ['Pa', 'kPa', 'MPa']
+};
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('QUOTATION_ENTRY');
@@ -86,6 +98,11 @@ const App: React.FC = () => {
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
   const [activePointId, setActivePointId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // New state for adding point modal
+  const [isAddingPoint, setIsAddingPoint] = useState(false);
+  const [newPointVal, setNewPointVal] = useState('');
+  const [newPointUnit, setNewPointUnit] = useState('');
 
   const activeItem = session.items.find(i => i.id === activeItemId);
   const activeType = activeItem?.measurementTypes.find(t => t.id === activeTypeId);
@@ -489,14 +506,93 @@ const App: React.FC = () => {
 
             <button
               onClick={() => {
-                const val = prompt("請輸入校正目標值 (例如: 100):");
-                const unit = prompt("請輸入單位 (例如: V):");
-                if (val && unit) addPointToType(val, unit);
+                setNewPointVal('');
+                // Set default unit to the first option if available
+                const defaultUnit = UNIT_OPTIONS[activeType.type]?.[0] || '';
+                setNewPointUnit(defaultUnit);
+                setIsAddingPoint(true);
               }}
               className="w-full py-6 mb-8 border-2 border-dashed border-slate-900 rounded-[2.5rem] text-xs font-black text-slate-700 uppercase tracking-widest hover:border-emerald-500/50 hover:text-emerald-500 transition-all active:scale-95"
             >
               + 新增校正點位
             </button>
+
+            {/* Add Point Modal */}
+            {isAddingPoint && (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] w-full max-w-sm shadow-2xl space-y-6">
+                  <h3 className="text-xl font-black text-white italic uppercase tracking-tighter text-center">新增校正點位</h3>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">目標值 Target Value</label>
+                      <input
+                        type="text"
+                        value={newPointVal}
+                        onChange={(e) => setNewPointVal(e.target.value)}
+                        placeholder="例如: 100"
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white focus:border-emerald-500 outline-none"
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">單位 Unit</label>
+                      <div className="relative">
+                        <select
+                          value={newPointUnit}
+                          onChange={(e) => setNewPointUnit(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white focus:border-emerald-500 outline-none appearance-none"
+                        >
+                          {UNIT_OPTIONS[activeType.type] ? (
+                            UNIT_OPTIONS[activeType.type].map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))
+                          ) : (
+                            <option value="">自訂 (未定義類別)</option>
+                          )}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
+                      {/* Fallback input if no options defined */}
+                      {!UNIT_OPTIONS[activeType.type] && (
+                        <input
+                          type="text"
+                          value={newPointUnit}
+                          onChange={(e) => setNewPointUnit(e.target.value)}
+                          placeholder="輸入單位"
+                          className="w-full mt-2 bg-slate-950 border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white focus:border-emerald-500 outline-none"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setIsAddingPoint(false)}
+                      className="py-4 bg-slate-800 text-slate-400 font-bold rounded-2xl hover:bg-slate-700 transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (newPointVal && newPointUnit) {
+                          addPointToType(newPointVal, newPointUnit);
+                          setIsAddingPoint(false);
+                        } else {
+                          alert("請輸入數值與選擇單位");
+                        }
+                      }}
+                      className="py-4 bg-emerald-500 text-black font-black rounded-2xl shadow-lg hover:bg-emerald-400 transition-colors"
+                    >
+                      確認新增
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               {activeType.points.map(p => (
