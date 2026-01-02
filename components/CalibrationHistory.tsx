@@ -97,7 +97,8 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                 `"${r.standard_value || ''}"`,
                 `"${r.value}"`,
                 `"${r.unit}"`,
-                `"${r.image_url || ''}"`,
+                `"${r.unit}"`,
+                `"${(r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image'}"`,
                 `"${new Date(r.created_at).toLocaleString()}"`
             ].join(','))
         ].join('\n');
@@ -288,30 +289,38 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                     </div>
                 )}
 
-                {/* View 2: Quotation Detail with Tabs */}
+                {/* View 2: Quotation Detail with Sidebar Layout */}
                 {selectedQuotation && (
-                    <div className="flex flex-col h-full">
-                        {/* Tabs */}
-                        <div className="flex overflow-x-auto p-2 gap-2 bg-slate-900/80 border-b border-slate-800 scrollbar-hide">
-                            {availableTabs.map(tab => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all whitespace-nowrap ${activeTab === tab
-                                        ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
-                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-                                        }`}
-                                >
-                                    {CATEGORY_LABELS[tab] || tab}
-                                </button>
-                            ))}
+                    <div className="flex h-full overflow-hidden">
+                        {/* Left Sidebar - Categories */}
+                        <div className="w-64 bg-slate-900/80 border-r border-slate-800 flex-shrink-0 flex flex-col p-4 overflow-y-auto">
+                            <h3 className="text-slate-500 font-bold text-xs uppercase tracking-widest mb-4 px-2">量測類別 Categories</h3>
+                            <div className="space-y-2">
+                                {availableTabs.map(tab => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === tab
+                                            ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
+                                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-center">
+                                            <span>{CATEGORY_LABELS[tab] || tab}</span>
+                                            {activeTab === tab && (
+                                                <div className="w-2 h-2 rounded-full bg-black/50"></div>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* List */}
-                        <div className="flex-grow overflow-y-auto">
+                        {/* Right Content - Table */}
+                        <div className="flex-grow overflow-y-auto bg-slate-950/50">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-slate-800 bg-slate-900/50 sticky top-0 backdrop-blur-md">
+                                    <tr className="border-b border-slate-800 bg-slate-900/50 sticky top-0 backdrop-blur-md z-10">
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">設備/型號</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">序號</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">量測類型</th>
@@ -360,31 +369,33 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                         </div>
                     </div>
                 )}
-            </div>
+            </div >
 
             {/* Lightbox Modal */}
-            {previewImage && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
-                    onClick={() => setPreviewImage(null)}
-                >
-                    <div className="relative max-w-full max-h-full">
-                        <img
-                            src={previewImage}
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-                            alt="Full Preview"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                        <button
-                            onClick={() => setPreviewImage(null)}
-                            className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
-                        >
-                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
+            {
+                previewImage && (
+                    <div
+                        className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                        onClick={() => setPreviewImage(null)}
+                    >
+                        <div className="relative max-w-full max-h-full">
+                            <img
+                                src={previewImage}
+                                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                alt="Full Preview"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                                onClick={() => setPreviewImage(null)}
+                                className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
+                            >
+                                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 };
 
