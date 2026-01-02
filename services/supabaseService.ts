@@ -95,7 +95,7 @@ export const getRecordsByQuotation = async (quotationNo: string): Promise<Calibr
   const { data, error } = await supabase
     .from('readings')
     .select('*')
-    .eq('quotation_no', quotationNo)
+    .ilike('quotation_no', quotationNo)
     .order('created_at', { ascending: true });
 
   if (error) {
