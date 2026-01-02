@@ -246,7 +246,7 @@ const App: React.FC = () => {
             serial_number: item.identity.serial_number,
             reading_type: 'Identity Photo',
             standard_value: 'N/A',
-            value: 'Nameplate',
+            value: 'Nameplate L:' + (item.identity.image ? item.identity.image.length : '0'),
             unit: 'Img',
             image_base64: item.identity.image,
             created_at: new Date().toISOString()
