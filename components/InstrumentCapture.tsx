@@ -14,10 +14,11 @@ interface Props {
   lockedStandard?: { value: string, unit: string, image: string };
   onUnlock?: () => void;
   isCapturingStandard?: boolean;
+  expectedUnit?: string;
 }
 
 const InstrumentCapture: React.FC<Props> = ({
-  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard
+  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCaptured, setIsCaptured] = useState(false);
@@ -102,6 +103,8 @@ const InstrumentCapture: React.FC<Props> = ({
 
         // 如果是手動模式，直接跳過 AI
         if (isManual) {
+          // 在手動模式下，自動填入預期單位
+          setFormData(prev => ({ ...prev, unit: expectedUnit || '' }));
           return;
         }
 
@@ -117,13 +120,15 @@ const InstrumentCapture: React.FC<Props> = ({
           }
           setFormData({
             value: res.value || '',
-            unit: res.unit || '',
+            unit: res.unit || expectedUnit || '', // 若 AI 無回傳單位，使用預期單位
             maker: res.maker || '',
             model: res.model || '',
             serial_number: res.serial_number || ''
           });
         } catch (e) {
           console.error("辨識異常，請手動輸入");
+          // 錯誤時也嘗試帶入單位
+          setFormData(prev => ({ ...prev, unit: expectedUnit || '' }));
         } finally {
           setIsProcessing(false);
         }

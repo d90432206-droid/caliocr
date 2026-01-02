@@ -2,12 +2,27 @@
 import React, { useState } from 'react';
 
 interface Props {
-  onSubmit: (data: { customer_name: string; quotation_no: string }) => void;
-  initialData: { customer_name: string; quotation_no: string };
+  onSubmit: (data: { customer_name: string; quotation_no: string; temperature: string; humidity: string }) => void;
+  onReset?: () => void;
+  initialData: { customer_name: string; quotation_no: string; temperature?: string; humidity?: string };
 }
 
-const CalibrationForm: React.FC<Props> = ({ onSubmit, initialData }) => {
-  const [data, setData] = useState(initialData);
+const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) => {
+  const [data, setData] = useState({
+    customer_name: initialData.customer_name,
+    quotation_no: initialData.quotation_no,
+    temperature: initialData.temperature || '',
+    humidity: initialData.humidity || ''
+  });
+
+  React.useEffect(() => {
+    setData({
+      customer_name: initialData.customer_name,
+      quotation_no: initialData.quotation_no,
+      temperature: initialData.temperature || '',
+      humidity: initialData.humidity || ''
+    });
+  }, [initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +35,16 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, initialData }) => {
 
   return (
     <div className="flex-grow p-6 overflow-y-auto flex flex-col justify-center">
-      <div className="max-w-md mx-auto w-full">
+      <div className="max-w-md mx-auto w-full relative">
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            className="absolute -top-10 right-0 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-700 px-3 py-1 rounded-full hover:bg-slate-800 transition-all"
+          >
+            重置/清除 Reset
+          </button>
+        )}
         <h2 className="text-3xl font-black mb-2 text-center italic uppercase tracking-tighter">建立校正任務</h2>
         <p className="text-slate-500 text-[10px] font-bold text-center uppercase tracking-[0.2em] mb-12">Session Initialization</p>
 
@@ -60,6 +84,29 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, initialData }) => {
               placeholder="請輸入客戶名稱"
               className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 p-5 rounded-[2rem] outline-none transition-all font-bold text-lg"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">溫度 Temp (℃)</label>
+              <input
+                type="text"
+                value={data.temperature}
+                onChange={e => setData({ ...data, temperature: e.target.value })}
+                placeholder="23.0"
+                className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 p-5 rounded-[2rem] outline-none transition-all font-bold text-lg"
+              />
+            </div>
+            <div className="space-y-3">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">濕度 Humidity (%)</label>
+              <input
+                type="text"
+                value={data.humidity}
+                onChange={e => setData({ ...data, humidity: e.target.value })}
+                placeholder="50"
+                className="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 p-5 rounded-[2rem] outline-none transition-all font-bold text-lg"
+              />
+            </div>
           </div>
 
           <div className="pt-8">

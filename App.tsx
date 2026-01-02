@@ -35,6 +35,7 @@ interface CalibrationPoint {
   id: string;
   targetValue: string;
   unit: string;
+  frequency?: string;
   standard: ReadingData | null;
   readings: ReadingData[];
 }
@@ -84,6 +85,8 @@ const App: React.FC = () => {
   const [session, setSession] = useState({
     quotation_no: localStorage.getItem('quotation_no') || '',
     customer_name: localStorage.getItem('customer_name') || '',
+    temperature: localStorage.getItem('env_temperature') || '',
+    humidity: localStorage.getItem('env_humidity') || '',
     items: [] as EquipmentItem[],
     standardCache: {} as Record<string, { value: string, unit: string, image: string }>
   });
@@ -92,7 +95,9 @@ const App: React.FC = () => {
   React.useEffect(() => {
     if (session.quotation_no) localStorage.setItem('quotation_no', session.quotation_no);
     if (session.customer_name) localStorage.setItem('customer_name', session.customer_name);
-  }, [session.quotation_no, session.customer_name]);
+    if (session.temperature) localStorage.setItem('env_temperature', session.temperature);
+    if (session.humidity) localStorage.setItem('env_humidity', session.humidity);
+  }, [session.quotation_no, session.customer_name, session.temperature, session.humidity]);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
@@ -101,18 +106,22 @@ const App: React.FC = () => {
 
   // New state for adding point modal
   const [isAddingPoint, setIsAddingPoint] = useState(false);
+
   const [newPointVal, setNewPointVal] = useState('');
   const [newPointUnit, setNewPointUnit] = useState('');
+  const [newPointFreq, setNewPointFreq] = useState('');
 
   const activeItem = session.items.find(i => i.id === activeItemId);
   const activeType = activeItem?.measurementTypes.find(t => t.id === activeTypeId);
   const activePoint = activeType?.points.find(p => p.id === activePointId);
 
-  const handleQuotationSubmit = (data: { customer_name: string, quotation_no: string }) => {
+  const handleQuotationSubmit = (data: { customer_name: string, quotation_no: string, temperature: string, humidity: string }) => {
     setSession({
       ...session,
       quotation_no: data.quotation_no,
-      customer_name: data.customer_name
+      customer_name: data.customer_name,
+      temperature: data.temperature,
+      humidity: data.humidity
     });
     setStep('EQUIPMENT_LIST');
   };
@@ -126,6 +135,8 @@ const App: React.FC = () => {
     });
     localStorage.removeItem('quotation_no');
     localStorage.removeItem('customer_name');
+    localStorage.removeItem('env_temperature');
+    localStorage.removeItem('env_humidity');
     setStep('QUOTATION_ENTRY');
   };
 
@@ -165,10 +176,10 @@ const App: React.FC = () => {
     setStep('POINT_LIST');
   };
 
-  const addPointToType = (targetValue: string, unit: string) => {
+  const addPointToType = (targetValue: string, unit: string, frequency?: string) => {
     if (!activeItemId || !activeTypeId) return;
     const newPointId = crypto.randomUUID();
-    const newPoint: CalibrationPoint = { id: newPointId, targetValue, unit, standard: null, readings: [] };
+    const newPoint: CalibrationPoint = { id: newPointId, targetValue, unit, frequency, standard: null, readings: [] };
 
     setSession(prev => ({
       ...prev,
@@ -298,6 +309,9 @@ const App: React.FC = () => {
                 standard_value: point.targetValue,
                 value: r.value,
                 unit: r.unit,
+                frequency: point.frequency,
+                environment_temp: session.temperature,
+                environment_humidity: session.humidity,
                 image_base64: r.image,
                 created_at: r.timestamp
               });
@@ -340,8 +354,11 @@ const App: React.FC = () => {
             onSubmit={handleQuotationSubmit}
             initialData={{
               customer_name: session.customer_name,
-              quotation_no: session.quotation_no
+              quotation_no: session.quotation_no,
+              temperature: session.temperature,
+              humidity: session.humidity
             }}
+            onReset={clearSession}
           />
         )}
 
@@ -510,6 +527,7 @@ const App: React.FC = () => {
                 // Set default unit to the first option if available
                 const defaultUnit = UNIT_OPTIONS[activeType.type]?.[0] || '';
                 setNewPointUnit(defaultUnit);
+                setNewPointFreq('');
                 setIsAddingPoint(true);
               }}
               className="w-full py-6 mb-8 border-2 border-dashed border-slate-900 rounded-[2.5rem] text-xs font-black text-slate-700 uppercase tracking-widest hover:border-emerald-500/50 hover:text-emerald-500 transition-all active:scale-95"
@@ -569,6 +587,29 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
+                  {['ac_voltage', 'ac_current', 'power'].includes(activeType.type) && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">頻率 Frequency</label>
+                      <div className="relative">
+                        <select
+                          value={newPointFreq}
+                          onChange={(e) => setNewPointFreq(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-lg font-bold text-white focus:border-emerald-500 outline-none appearance-none"
+                        >
+                          <option value="">無 None</option>
+                          <option value="50Hz">50Hz</option>
+                          <option value="60Hz">60Hz</option>
+                          <option value="400Hz">400Hz</option>
+                          <option value="1kHz">1kHz</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       onClick={() => setIsAddingPoint(false)}
@@ -579,7 +620,7 @@ const App: React.FC = () => {
                     <button
                       onClick={() => {
                         if (newPointVal && newPointUnit) {
-                          addPointToType(newPointVal, newPointUnit);
+                          addPointToType(newPointVal, newPointUnit, newPointFreq);
                           setIsAddingPoint(false);
                         } else {
                           alert("請輸入數值與選擇單位");
@@ -603,7 +644,11 @@ const App: React.FC = () => {
                 >
                   <div className="flex-grow">
                     <div className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-widest">Target Value</div>
-                    <div className="text-3xl font-black text-white italic">{p.targetValue} <span className="text-xs text-slate-500 font-medium ml-1 not-italic">{p.unit}</span></div>
+                    <div className="text-3xl font-black text-white italic">
+                      {p.targetValue}
+                      <span className="text-xs text-slate-500 font-medium ml-1 not-italic">{p.unit}</span>
+                      {p.frequency && <span className="text-xs text-emerald-500 font-bold ml-2 not-italic">@{p.frequency}</span>}
+                    </div>
                     <div className="mt-4 flex gap-1.5 flex-wrap">
                       {Array.from({ length: activeType.maxReadings }).map((_, i) => (
                         <div key={i} className={`w-2 h-1.5 rounded-full transition-all ${p.readings.length > i ? 'bg-emerald-500 w-4 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
@@ -619,79 +664,90 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-        )}
+        )
+        }
 
-        {step === 'READING_CAPTURE' && activeItem && activePoint && activeType && (
-          <InstrumentCapture
-            key={`${activePoint.id}-${activePoint.standard ? 'R' : 'S'}-${activePoint.readings.length}`}
-            mode="reading"
-            type={activeType.type}
-            onReadingConfirm={handleReadingCapture}
-            onBack={() => setStep('POINT_LIST')}
-            currentIndex={activePoint.standard ? activePoint.readings.length + 1 : undefined}
-            totalIndex={activeType.maxReadings}
-            lockedStandard={!activePoint.standard ? session.standardCache[activePoint.targetValue] : undefined}
-            onUnlock={() => unlockStandard(activePoint.targetValue)}
-            // New prop to clarify mode
-            isCapturingStandard={!activePoint.standard}
-          />
-        )}
+        {
+          step === 'READING_CAPTURE' && activeItem && activePoint && activeType && (
+            <InstrumentCapture
+              key={`${activePoint.id}-${activePoint.standard ? 'R' : 'S'}-${activePoint.readings.length}`}
+              mode="reading"
+              type={activeType.type}
+              onReadingConfirm={handleReadingCapture}
+              onBack={() => setStep('POINT_LIST')}
+              currentIndex={activePoint.standard ? activePoint.readings.length + 1 : undefined}
+              totalIndex={activeType.maxReadings}
+              lockedStandard={!activePoint.standard ? session.standardCache[activePoint.targetValue] : undefined}
+              onUnlock={() => unlockStandard(activePoint.targetValue)}
+              // New prop to clarify mode
+              isCapturingStandard={!activePoint.standard}
+              // For standard capture of Temperature, do not enforce point unit (allow Ohm vs C mismatch) e.g. Standard might be Resistance
+              expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
+            />
+          )
+        }
 
-        {step === 'EDIT_IDENTITY' && activeItem && (
-          <div className="flex-grow p-8 bg-slate-950 overflow-y-auto">
-            <button onClick={() => setStep('ITEM_DASHBOARD')} className="mb-10 p-3 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg></button>
-            <h2 className="text-2xl font-black mb-10 italic uppercase tracking-tighter">編輯設備資訊</h2>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">廠牌 Maker</label>
-                <input type="text" value={activeItem.identity.maker} onChange={e => {
-                  setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, maker: e.target.value } } : i) });
-                }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
+        {
+          step === 'EDIT_IDENTITY' && activeItem && (
+            <div className="flex-grow p-8 bg-slate-950 overflow-y-auto">
+              <button onClick={() => setStep('ITEM_DASHBOARD')} className="mb-10 p-3 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg></button>
+              <h2 className="text-2xl font-black mb-10 italic uppercase tracking-tighter">編輯設備資訊</h2>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">廠牌 Maker</label>
+                  <input type="text" value={activeItem.identity.maker} onChange={e => {
+                    setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, maker: e.target.value } } : i) });
+                  }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">型號 Model</label>
+                  <input type="text" value={activeItem.identity.model} onChange={e => {
+                    setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, model: e.target.value } } : i) });
+                  }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">序號 Serial No.</label>
+                  <input type="text" value={activeItem.identity.serial_number} onChange={e => {
+                    setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, serial_number: e.target.value } } : i) });
+                  }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
+                </div>
+                <button onClick={() => setStep('ITEM_DASHBOARD')} className="w-full py-5 bg-emerald-500 text-black font-black rounded-[2rem] mt-10 shadow-lg active:scale-95 transition-all uppercase tracking-widest text-xs">儲存並返回</button>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">型號 Model</label>
-                <input type="text" value={activeItem.identity.model} onChange={e => {
-                  setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, model: e.target.value } } : i) });
-                }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">序號 Serial No.</label>
-                <input type="text" value={activeItem.identity.serial_number} onChange={e => {
-                  setSession({ ...session, items: session.items.map(i => i.id === activeItemId ? { ...i, identity: { ...i.identity, serial_number: e.target.value } } : i) });
-                }} className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[2rem] text-lg font-bold focus:border-emerald-500 outline-none" />
-              </div>
-              <button onClick={() => setStep('ITEM_DASHBOARD')} className="w-full py-5 bg-emerald-500 text-black font-black rounded-[2rem] mt-10 shadow-lg active:scale-95 transition-all uppercase tracking-widest text-xs">儲存並返回</button>
             </div>
-          </div>
-        )}
+          )
+        }
 
-        {step === 'SUCCESS' && (
-          <div className="flex-grow flex flex-col items-center justify-center p-10 text-center animate-in zoom-in duration-500">
-            <div className="w-32 h-32 bg-emerald-500/10 rounded-[3rem] flex items-center justify-center mb-10 border border-emerald-500/20 shadow-2xl shadow-emerald-500/20">
-              <svg className="w-16 h-16 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+        {
+          step === 'SUCCESS' && (
+            <div className="flex-grow flex flex-col items-center justify-center p-10 text-center animate-in zoom-in duration-500">
+              <div className="w-32 h-32 bg-emerald-500/10 rounded-[3rem] flex items-center justify-center mb-10 border border-emerald-500/20 shadow-2xl shadow-emerald-500/20">
+                <svg className="w-16 h-16 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+              </div>
+              <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">Mission Complete</h2>
+              <p className="text-slate-500 mb-12 text-[10px] font-bold uppercase tracking-widest max-w-[250px] leading-relaxed">所有設備之量測數據與原始照已同步至私有雲端伺服器。</p>
+              <div className="flex flex-col w-full gap-4">
+                <button onClick={() => window.location.reload()} className="w-full py-6 bg-white text-black font-black rounded-[2.5rem] shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">開始新校正單 NEXT</button>
+                <button
+                  onClick={() => setStep('HISTORY_VIEW')}
+                  className="w-full py-4 text-emerald-500 font-bold text-[10px] uppercase tracking-[0.2em] hover:text-white transition-colors"
+                >
+                  查看同步歷史記錄
+                </button>
+              </div>
             </div>
-            <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">Mission Complete</h2>
-            <p className="text-slate-500 mb-12 text-[10px] font-bold uppercase tracking-widest max-w-[250px] leading-relaxed">所有設備之量測數據與原始照已同步至私有雲端伺服器。</p>
-            <div className="flex flex-col w-full gap-4">
-              <button onClick={() => window.location.reload()} className="w-full py-6 bg-white text-black font-black rounded-[2.5rem] shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">開始新校正單 NEXT</button>
-              <button
-                onClick={() => setStep('HISTORY_VIEW')}
-                className="w-full py-4 text-emerald-500 font-bold text-[10px] uppercase tracking-[0.2em] hover:text-white transition-colors"
-              >
-                查看同步歷史記錄
-              </button>
-            </div>
-          </div>
-        )}
+          )
+        }
 
-        {step === 'HISTORY_VIEW' && (
-          <CalibrationHistory
-            onBack={clearSession}
-            initialQuotationNo={session.quotation_no}
-          />
-        )}
-      </main>
-    </div>
+        {
+          step === 'HISTORY_VIEW' && (
+            <CalibrationHistory
+              onBack={clearSession}
+              initialQuotationNo={session.quotation_no}
+            />
+          )
+        }
+      </main >
+    </div >
   );
 };
 

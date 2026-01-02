@@ -25,6 +25,9 @@ export interface CalibrationRecord {
   standard_value: string; // 標準值 (目標值)
   value: string;          // 實測值
   unit: string;
+  frequency?: string; // 頻率 (AC/Power only)
+  environment_temp?: string; // 環境溫度
+  environment_humidity?: string; // 環境濕度
   image_url?: string;
   image_base64?: string; // 用於上傳前的暫存
   created_at: string;
@@ -66,6 +69,9 @@ export const saveCalibrationRecord = async (record: CalibrationRecord) => {
       standard_value: record.standard_value,
       value: record.value,
       unit: record.unit,
+      frequency: record.frequency,
+      environment_temp: record.environment_temp,
+      environment_humidity: record.environment_humidity,
       image_url: imageUrl,
       created_at: record.created_at
     }])
