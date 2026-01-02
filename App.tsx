@@ -731,7 +731,7 @@ const App: React.FC = () => {
               <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">Mission Complete</h2>
               <p className="text-slate-500 mb-12 text-[10px] font-bold uppercase tracking-widest max-w-[250px] leading-relaxed">所有設備之量測數據與原始照已同步至私有雲端伺服器。</p>
               <div className="flex flex-col w-full gap-4">
-                <button onClick={() => window.location.reload()} className="w-full py-6 bg-white text-black font-black rounded-[2.5rem] shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">開始新校正單 NEXT</button>
+                <button onClick={clearSession} className="w-full py-6 bg-white text-black font-black rounded-[2.5rem] shadow-2xl active:scale-95 transition-all text-xs uppercase tracking-widest">開始新校正單 NEXT</button>
                 <button
                   onClick={() => setStep('HISTORY_VIEW')}
                   className="w-full py-4 text-emerald-500 font-bold text-[10px] uppercase tracking-[0.2em] hover:text-white transition-colors"
