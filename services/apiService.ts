@@ -6,9 +6,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 // 這裡模擬呼叫您的 Python 後端
 const USE_PYTHON_BACKEND = true; // 開發階段可切換
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export const analyzeInstrument = async (base64Image: string, mode: 'identity' | 'reading', type?: string) => {
   if (USE_PYTHON_BACKEND) {
-    const response = await fetch('/api/analyze', {
+    const response = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_base64: base64Image, mode, type })
