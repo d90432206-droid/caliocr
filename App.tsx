@@ -19,7 +19,8 @@ type AppStep =
   | 'SUCCESS'
   | 'EDIT_IDENTITY'
   | 'EDIT_READING'
-  | 'HISTORY_VIEW';
+  | 'HISTORY_VIEW'
+  | 'IDENTITY_MANUAL';
 
 interface ReadingData {
   id: string;
@@ -48,7 +49,7 @@ interface MeasurementType {
 interface EquipmentItem {
   id: string;
   equipment_id: string;
-  identity: { maker: string; model: string; serial_number: string };
+  identity: { maker: string; model: string; serial_number: string; image?: string };
   measurementTypes: MeasurementType[];
 }
 
@@ -97,11 +98,11 @@ const App: React.FC = () => {
     setStep('IDENTITY_CAPTURE');
   };
 
-  const handleIdentityComplete = (idData: { maker: string, model: string, serial_number: string, equipment_id?: string }) => {
+  const handleIdentityComplete = (idData: { maker: string, model: string, serial_number: string, image?: string, equipment_id?: string }) => {
     const newItem: EquipmentItem = {
       id: crypto.randomUUID(),
       equipment_id: idData.equipment_id || `EQ-${Date.now()}`,
-      identity: { maker: idData.maker, model: idData.model, serial_number: idData.serial_number },
+      identity: { maker: idData.maker, model: idData.model, serial_number: idData.serial_number, image: idData.image },
       measurementTypes: []
     };
     setSession(prev => ({
@@ -216,6 +217,24 @@ const App: React.FC = () => {
     setIsSyncing(true);
     try {
       for (const item of session.items) {
+        // 0. 如果有銘牌照片，先儲存一張 "Identity Photo" 紀錄
+        if (item.identity.image) {
+          await saveCalibrationRecord({
+            customer_name: session.customer_name,
+            equipment_id: item.equipment_id,
+            quotation_no: session.quotation_no,
+            maker: item.identity.maker,
+            model: item.identity.model,
+            serial_number: item.identity.serial_number,
+            reading_type: 'Identity Photo',
+            standard_value: 'N/A',
+            value: 'Nameplate',
+            unit: 'Img',
+            image_base64: item.identity.image,
+            created_at: new Date().toISOString()
+          });
+        }
+
         for (const mType of item.measurementTypes) {
           for (const point of mType.points) {
             // Save standard if exists
@@ -308,7 +327,66 @@ const App: React.FC = () => {
             mode="identity"
             onIdentityConfirm={handleIdentityComplete}
             onBack={() => setStep('EQUIPMENT_LIST')}
+            onManualInput={() => setStep('IDENTITY_MANUAL')}
           />
+        )}
+
+        {step === 'IDENTITY_MANUAL' && (
+          <div className="flex-grow p-8 bg-slate-950 flex flex-col overflow-y-auto">
+            <div className="flex items-center gap-4 mb-10">
+              <button
+                onClick={() => setStep('IDENTITY_CAPTURE')}
+                className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500 active:scale-95 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h3 className="font-black text-2xl text-white italic truncate uppercase">手動輸入銘牌資訊</h3>
+            </div>
+
+            <div className="space-y-6 flex-grow">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">廠牌 Maker</label>
+                <input
+                  id="manualMaker"
+                  type="text"
+                  placeholder="例如: ASUS"
+                  className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[1.5rem] text-xl font-black text-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-700"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">型號 Model</label>
+                <input
+                  id="manualModel"
+                  type="text"
+                  placeholder="例如: Multimeter X1"
+                  className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[1.5rem] text-xl font-black text-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-700"
+                />
+              </div>
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">序號 Serial No.</label>
+                <input
+                  id="manualSerial"
+                  type="text"
+                  placeholder="例如: SN123456"
+                  className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[1.5rem] text-lg font-black text-white tracking-widest focus:border-emerald-500 outline-none transition-all placeholder:text-slate-700"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const maker = (document.getElementById('manualMaker') as HTMLInputElement).value || 'Unknown';
+                const model = (document.getElementById('manualModel') as HTMLInputElement).value || 'Unknown';
+                const serial = (document.getElementById('manualSerial') as HTMLInputElement).value || 'N/A';
+                handleIdentityComplete({ maker, model, serial_number: serial });
+              }}
+              className="mt-10 w-full py-6 bg-emerald-500 text-black font-black rounded-[2rem] shadow-2xl shadow-emerald-500/30 active:scale-[0.98] transition-all text-sm uppercase tracking-widest"
+            >
+              確認並進行校正
+            </button>
+          </div>
         )}
 
         {step === 'ITEM_DASHBOARD' && activeItem && (

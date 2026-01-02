@@ -7,7 +7,7 @@ interface Props {
   mode: 'identity' | 'reading';
   type?: string;
   onReadingConfirm?: (value: string, unit: string, timestamp: string, image: string) => void;
-  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string }) => void;
+  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string, image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
   totalIndex?: number;
@@ -56,7 +56,7 @@ const InstrumentCapture: React.FC<Props> = ({
     return () => stream?.getTracks().forEach(t => t.stop());
   }, [startCamera, lockedStandard]);
 
-  const handleCapture = async () => {
+  const handleCapture = async (isManual = false) => {
     if (videoRef.current && canvasRef.current) {
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
@@ -64,7 +64,9 @@ const InstrumentCapture: React.FC<Props> = ({
         canvas.width = videoRef.current.videoWidth;
         canvas.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0);
-        const imgData = canvas.toDataURL('image/jpeg', 0.9);
+        const quality = isManual ? 0.5 : 0.9;
+        const imgData = canvas.toDataURL('image/jpeg', quality);
+
         if (imgData.length < 100) {
           alert("拍照失敗，請重新嘗試");
           return;
@@ -72,6 +74,11 @@ const InstrumentCapture: React.FC<Props> = ({
         setCapturedImage(imgData);
         setIsCaptured(true);
         stream?.getTracks().forEach(t => t.stop());
+
+        // 如果是手動模式，直接跳過 AI
+        if (isManual) {
+          return;
+        }
 
         // 觸發 AI 辨識 (透過 API 或直接 SDK)
         setIsProcessing(true);
@@ -106,7 +113,8 @@ const InstrumentCapture: React.FC<Props> = ({
       onIdentityConfirm({
         maker: formData.maker,
         model: formData.model,
-        serial_number: formData.serial_number
+        serial_number: formData.serial_number,
+        image: capturedImage || undefined
       });
     }
   };
@@ -150,8 +158,16 @@ const InstrumentCapture: React.FC<Props> = ({
             </div>
           </div>
           {/* 拍照快門 */}
-          <div className="absolute bottom-16 left-0 right-0 flex justify-center pb-[safe-area-inset-bottom]">
-            <button onClick={handleCapture} className="w-20 h-20 rounded-full border-4 border-white/20 p-1 bg-white/10 backdrop-blur-md active:scale-95 transition-all">
+          <div className="absolute bottom-16 left-0 right-0 flex flex-col items-center gap-6 pb-[safe-area-inset-bottom]">
+            {mode === 'identity' && (
+              <button
+                onClick={() => handleCapture(true)}
+                className="px-6 py-2.5 bg-black/40 backdrop-blur-xl border border-white/10 rounded-full text-white text-[10px] font-black tracking-widest uppercase active:scale-95 transition-all"
+              >
+                直接拍照手動輸入 (SKIP AI)
+              </button>
+            )}
+            <button onClick={() => handleCapture(false)} className="w-20 h-20 rounded-full border-4 border-white/20 p-1 bg-white/10 backdrop-blur-md active:scale-95 transition-all">
               <div className="w-full h-full rounded-full bg-white shadow-[0_0_25px_rgba(255,255,255,0.7)] hover:scale-105 transition-transform"></div>
             </button>
           </div>
@@ -166,7 +182,7 @@ const InstrumentCapture: React.FC<Props> = ({
               95% { opacity: 0; }
             }
           `}} />
-        </div>
+        </div >
       ) : (
         <div className="flex-grow flex flex-col bg-slate-900 animate-in slide-in-from-bottom-5">
           {/* 截圖預覽 */}
@@ -243,7 +259,7 @@ const InstrumentCapture: React.FC<Props> = ({
         </div>
       )}
       <canvas ref={canvasRef} className="hidden" />
-    </div>
+    </div >
   );
 };
 
