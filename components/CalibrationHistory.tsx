@@ -28,6 +28,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     // UI State
     const [selectedQuotation, setSelectedQuotation] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<string>('ALL');
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     const handleSearch = async () => {
         setIsLoading(true);
@@ -216,8 +217,8 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                     key={tab}
                                     onClick={() => setActiveTab(tab)}
                                     className={`px-6 py-3 rounded-xl text-xs font-black tracking-widest uppercase transition-all whitespace-nowrap ${activeTab === tab
-                                            ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
-                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                                        ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20'
+                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
                                         }`}
                                 >
                                     {CATEGORY_LABELS[tab] || tab}
@@ -261,21 +262,12 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                             </td>
                                             <td className="p-6 text-right">
                                                 {record.image_url || record.image_base64 ? (
-                                                    <a
-                                                        href={record.image_url || '#'}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
+                                                    <button
+                                                        onClick={() => setPreviewImage(record.image_url || record.image_base64)}
                                                         className="inline-flex items-center justify-center w-12 h-12 bg-slate-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-emerald-500 transition-all shadow-xl"
-                                                        onClick={(e) => {
-                                                            if (!record.image_url && record.image_base64) {
-                                                                e.preventDefault();
-                                                                const win = window.open();
-                                                                if (win) win.document.write(`<img src="${record.image_base64}" />`);
-                                                            }
-                                                        }}
                                                     >
                                                         <img src={record.image_url || record.image_base64} className="w-full h-full object-cover" alt="Calibration" />
-                                                    </a>
+                                                    </button>
                                                 ) : (
                                                     <span className="text-[10px] text-slate-700 font-black italic">NO IMAGE</span>
                                                 )}
@@ -288,6 +280,29 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                     </div>
                 )}
             </div>
+
+            {/* Lightbox Modal */}
+            {previewImage && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-full max-h-full">
+                        <img
+                            src={previewImage}
+                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                            alt="Full Preview"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                            onClick={() => setPreviewImage(null)}
+                            className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white"
+                        >
+                            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
