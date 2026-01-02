@@ -10,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
 
-# Hardcoded API key for testing to avoid .env.local issues
-api_key = "AIzaSyD0pUz8CDTM4XW1ga9S-pqLOrWgLHHU5Xc"
+# Gemini API Key (Gemini 2.0 Flash)
+api_key = "AIzaSyBDIaeqHtNXkbkDuMkyTdJXDNyvO30-5N8"
 
 if api_key:
     print(f"API Key loaded (first 4): {api_key[:4]}")
