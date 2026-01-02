@@ -683,6 +683,7 @@ const App: React.FC = () => {
               isCapturingStandard={!activePoint.standard}
               // For standard capture of Temperature, do not enforce point unit (allow Ohm vs C mismatch) e.g. Standard might be Resistance
               expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
+              unitOptions={UNIT_OPTIONS[activeType.type]}
             />
           )
         }

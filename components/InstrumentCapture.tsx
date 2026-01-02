@@ -15,10 +15,11 @@ interface Props {
   onUnlock?: () => void;
   isCapturingStandard?: boolean;
   expectedUnit?: string;
+  unitOptions?: string[];
 }
 
 const InstrumentCapture: React.FC<Props> = ({
-  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit
+  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit, unitOptions
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCaptured, setIsCaptured] = useState(false);
@@ -248,12 +249,30 @@ const InstrumentCapture: React.FC<Props> = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] text-slate-500 font-bold">單位</label>
-                  <input
-                    type="text"
-                    value={formData.unit}
-                    onChange={e => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-xl font-bold text-slate-300 outline-none focus:border-emerald-500"
-                  />
+                  {unitOptions && unitOptions.length > 0 ? (
+                    <div className="relative">
+                      <select
+                        value={formData.unit}
+                        onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-xl font-bold text-slate-300 outline-none focus:border-emerald-500 appearance-none"
+                      >
+                        {formData.unit && !unitOptions.includes(formData.unit) && <option value={formData.unit}>{formData.unit}</option>}
+                        {unitOptions.map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={formData.unit}
+                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-xl font-bold text-slate-300 outline-none focus:border-emerald-500"
+                    />
+                  )}
                 </div>
               </div>
             ) : (
