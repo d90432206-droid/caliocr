@@ -6,20 +6,21 @@ import { analyzeInstrument } from '../services/apiService';
 interface Props {
   mode: 'identity' | 'reading';
   type?: string;
-  onReadingConfirm?: (value: string, unit: string, timestamp: string, image: string) => void;
+  onReadingConfirm?: (value: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string }) => void;
   onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string, image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
   totalIndex?: number;
-  lockedStandard?: { value: string, unit: string, image: string };
+  lockedStandard?: { value: string, unit: string, image: string, maker?: string, model?: string, serial?: string };
   onUnlock?: () => void;
   isCapturingStandard?: boolean;
   expectedUnit?: string;
   unitOptions?: string[];
+  availableStandards?: Array<{ id: string; maker: string; model: string; serial: string; image?: string }>;
 }
 
 const InstrumentCapture: React.FC<Props> = ({
-  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit, unitOptions
+  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit, unitOptions, availableStandards
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCaptured, setIsCaptured] = useState(false);
@@ -51,7 +52,14 @@ const InstrumentCapture: React.FC<Props> = ({
     if (lockedStandard) {
       setCapturedImage(lockedStandard.image);
       setIsCaptured(true);
-      setFormData(prev => ({ ...prev, value: lockedStandard.value, unit: lockedStandard.unit }));
+      setFormData(prev => ({
+        ...prev,
+        value: lockedStandard.value,
+        unit: lockedStandard.unit,
+        maker: lockedStandard.maker || prev.maker,
+        model: lockedStandard.model || prev.model,
+        serial_number: lockedStandard.serial || prev.serial_number
+      }));
       return;
     }
     startCamera();
@@ -139,7 +147,13 @@ const InstrumentCapture: React.FC<Props> = ({
 
   const handleFinalConfirm = () => {
     if (mode === 'reading' && onReadingConfirm && capturedImage) {
-      onReadingConfirm(formData.value, formData.unit, new Date().toISOString(), capturedImage);
+      onReadingConfirm(
+        formData.value,
+        formData.unit,
+        new Date().toISOString(),
+        capturedImage,
+        isCapturingStandard ? { maker: formData.maker, model: formData.model, serial: formData.serial_number } : undefined
+      );
     } else if (mode === 'identity' && onIdentityConfirm) {
       onIdentityConfirm({
         maker: formData.maker,
@@ -164,7 +178,7 @@ const InstrumentCapture: React.FC<Props> = ({
           </div>
           {currentIndex && totalIndex && !isCapturingStandard && (
             <div className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-white text-[9px] font-bold border border-white/20">
-              待校件進度 PROGRESS: {currentIndex} / {totalIndex}
+              待校件進度 DUT PROGRESS: {currentIndex} / {totalIndex}
             </div>
           )}
         </div>
@@ -274,6 +288,50 @@ const InstrumentCapture: React.FC<Props> = ({
                     />
                   )}
                 </div>
+                {/* Standard Info Selection/Inputs */}
+                {isCapturingStandard && (
+                  <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 animate-in slide-in-from-bottom-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
+                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">標準件資訊 Standard Info</span>
+                      </div>
+
+                      {availableStandards && availableStandards.length > 0 && (
+                        <select
+                          className="bg-slate-800 text-[9px] font-bold text-emerald-400 px-3 py-1 rounded-lg border border-emerald-500/30 outline-none"
+                          onChange={(e) => {
+                            const std = availableStandards.find(s => s.id === e.target.value);
+                            if (std) {
+                              setFormData(prev => ({ ...prev, maker: std.maker, model: std.model, serial_number: std.serial }));
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="" disabled>快速選擇已建立標準件...</option>
+                          {availableStandards.map(s => (
+                            <option key={s.id} value={s.id}>{s.maker} ({s.model} - {s.serial})</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-500 font-bold">廠牌 Maker</label>
+                        <input type="text" value={formData.maker} onChange={e => setFormData({ ...formData, maker: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" placeholder="e.g. Fluke" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-500 font-bold">型號 Model</label>
+                        <input type="text" value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" placeholder="e.g. 5522A" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-slate-500 font-bold">序號 Serial No.</label>
+                      <input type="text" value={formData.serial_number} onChange={e => setFormData({ ...formData, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none tracking-widest focus:border-emerald-500" />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-4">

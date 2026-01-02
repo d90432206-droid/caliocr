@@ -84,22 +84,26 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     const exportToCSV = () => {
         if (displayRecords.length === 0) return;
 
-        const headers = ['報價單號', '項次', '廠牌', '型號', '序號', '量測類型', '標準值', '實測值', '單位', '照片網址', '建立時間'];
+        const headers = ['報價單號', '項次', '廠牌', '型號', '序號', '量測類型', '標準值', '標準單位', '實測值', '單位', '照片網址', '建立時間'];
         const csvContent = [
             headers.join(','),
-            ...displayRecords.map((r, index) => [
-                `"${r.quotation_no}"`,
-                `"${index + 1}"`,
-                `"${r.maker}"`,
-                `"${r.model}"`,
-                `"${r.serial_number}"`,
-                `"${CATEGORY_LABELS[r.reading_type] || r.reading_type}"`,
-                `"${r.standard_value || ''}${r.standard_value && r.standard_value !== 'N/A' && r.unit ? ' ' + r.unit : ''}"`,
-                `"${r.value}"`,
-                `"${r.unit}"`,
-                `"${(r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image'}"`,
-                `"${new Date(r.created_at).toLocaleString()}"`
-            ].join(','))
+            ...displayRecords.map((r, index) => {
+                const row = [
+                    r.quotation_no || '',
+                    index + 1,
+                    r.maker || '',
+                    r.model || '',
+                    r.serial_number || '',
+                    CATEGORY_LABELS[r.reading_type] || r.reading_type,
+                    r.standard_value || '',
+                    r.standard_value === 'N/A' ? '' : (r.std_unit || r.unit || ''),
+                    r.value || '',
+                    r.unit || '',
+                    (r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image',
+                    new Date(r.created_at).toLocaleString()
+                ];
+                return row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            })
         ].join('\n');
 
         const fileName = `${selectedQuotation}_${activeTab === 'ALL' ? 'full' : activeTab}_export.csv`;
@@ -325,6 +329,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">序號</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">量測類型</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">標準值</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">單位</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">實測數值</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">建立時間</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">照片</th>
@@ -349,9 +354,12 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                                 </span>
                                             </td>
                                             <td className="p-6 text-xl font-bold text-slate-400">
-                                                {record.standard_value === 'N/A'
-                                                    ? '--'
-                                                    : <>{record.standard_value} <small className="text-slate-600">{record.unit}</small></>}
+                                                {record.standard_value === 'N/A' ? '--' : record.standard_value}
+                                            </td>
+                                            <td className="p-6 text-center">
+                                                <span className="text-xs text-slate-500 font-medium">
+                                                    {record.standard_value === 'N/A' ? '--' : (record.std_unit || record.unit)}
+                                                </span>
                                             </td>
                                             <td className="p-6 text-2xl font-black text-white italic">
                                                 {record.value} <span className="text-xs text-slate-500 font-medium not-italic ml-1">{record.unit}</span>

@@ -10,6 +10,8 @@ import { saveCalibrationRecord, CalibrationRecord } from './services/supabaseSer
 
 type AppStep =
   | 'QUOTATION_ENTRY'
+  | 'STANDARD_SETUP'
+  | 'STANDARD_CAPTURE'
   | 'EQUIPMENT_LIST'
   | 'IDENTITY_CAPTURE'
   | 'ITEM_DASHBOARD'
@@ -21,6 +23,24 @@ type AppStep =
   | 'EDIT_READING'
   | 'HISTORY_VIEW'
   | 'IDENTITY_MANUAL';
+
+interface StandardInstrument {
+  id: string;
+  maker: string;
+  model: string;
+  serial: string;
+  image?: string;
+}
+
+interface SessionData {
+  customer_name: string;
+  quotation_no: string;
+  temperature: string;
+  humidity: string;
+  items: EquipmentItem[];
+  standards: StandardInstrument[];
+  standardCache: Record<string, { value: string, unit: string, image: string, maker?: string, model?: string, serial?: string }>;
+}
 
 interface ReadingData {
   id: string;
@@ -36,6 +56,9 @@ interface CalibrationPoint {
   targetValue: string;
   unit: string;
   frequency?: string;
+  std_maker?: string;
+  std_model?: string;
+  std_serial?: string;
   standard: ReadingData | null;
   readings: ReadingData[];
 }
@@ -82,13 +105,14 @@ export const UNIT_OPTIONS: Record<string, string[]> = {
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('QUOTATION_ENTRY');
-  const [session, setSession] = useState({
+  const [session, setSession] = useState<SessionData>({
     quotation_no: localStorage.getItem('quotation_no') || '',
     customer_name: localStorage.getItem('customer_name') || '',
     temperature: localStorage.getItem('env_temperature') || '',
     humidity: localStorage.getItem('env_humidity') || '',
     items: [] as EquipmentItem[],
-    standardCache: {} as Record<string, { value: string, unit: string, image: string }>
+    standards: [] as StandardInstrument[],
+    standardCache: {} as Record<string, { value: string, unit: string, image: string, maker?: string, model?: string, serial?: string }>
   });
 
   // Persist session to localStorage
@@ -116,21 +140,28 @@ const App: React.FC = () => {
   const activePoint = activeType?.points.find(p => p.id === activePointId);
 
   const handleQuotationSubmit = (data: { customer_name: string, quotation_no: string, temperature: string, humidity: string }) => {
-    setSession({
-      ...session,
+    setSession(prev => ({
+      ...prev,
       quotation_no: data.quotation_no,
       customer_name: data.customer_name,
       temperature: data.temperature,
       humidity: data.humidity
-    });
-    setStep('EQUIPMENT_LIST');
+    }));
+    localStorage.setItem('quotation_no', data.quotation_no);
+    localStorage.setItem('customer_name', data.customer_name);
+    localStorage.setItem('env_temperature', data.temperature);
+    localStorage.setItem('env_humidity', data.humidity);
+    setStep('STANDARD_SETUP');
   };
 
   const clearSession = () => {
     setSession({
       quotation_no: '',
       customer_name: '',
+      temperature: '',
+      humidity: '',
       items: [],
+      standards: [],
       standardCache: {}
     });
     localStorage.removeItem('quotation_no');
@@ -138,6 +169,23 @@ const App: React.FC = () => {
     localStorage.removeItem('env_temperature');
     localStorage.removeItem('env_humidity');
     setStep('QUOTATION_ENTRY');
+  };
+
+  const addStandard = (std: { maker: string; model: string; serial_number: string, image?: string }) => {
+    setSession(prev => ({
+      ...prev,
+      standards: [
+        ...prev.standards,
+        {
+          id: crypto.randomUUID(),
+          maker: std.maker,
+          model: std.model,
+          serial: std.serial_number,
+          image: std.image
+        }
+      ]
+    }));
+    setStep('STANDARD_SETUP');
   };
 
   const startNewItem = () => {
@@ -195,8 +243,10 @@ const App: React.FC = () => {
     }));
   };
 
-  const handleReadingCapture = (value: string, unit: string, timestamp: string, image: string) => {
-    if (!activeItemId || !activeTypeId || !activePointId || !activeType || !activePoint) return;
+  // Handle Reading Capture (Standard or DUT)
+  // Updated signature to accept standard info
+  const handleReadingCapture = (value: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string, model: string, serial: string }) => {
+    if (!activeItem || !activeType || !activePoint) return;
 
     let shouldGoBack = false;
 
@@ -224,7 +274,7 @@ const App: React.FC = () => {
                 };
 
                 if (isCapturingStandard) {
-                  return { ...p, standard: { ...commonData, seq: 0 } };
+                  return { ...p, standard: { ...commonData, seq: 0, ...stdInfo } };
                 } else {
                   const newLength = p.readings.length + 1;
                   if (newLength >= t.maxReadings) {
@@ -240,7 +290,7 @@ const App: React.FC = () => {
 
       const newCache = { ...prev.standardCache };
       if (isCapturingStandard) {
-        newCache[`${activeType.type}_${activePoint.targetValue}`] = { value, unit, image };
+        newCache[`${activeType.type}_${activePoint.targetValue}`] = { value, unit, image, ...stdInfo };
       }
 
       return { ...prev, items: newItems, standardCache: newCache };
@@ -293,6 +343,10 @@ const App: React.FC = () => {
                 ...item.identity,
                 reading_type: `${mType.type}_STANDARD`,
                 standard_value: point.targetValue,
+                std_maker: point.standard?.maker,
+                std_model: point.standard?.model,
+                std_serial: point.standard?.serial,
+                std_unit: point.standard?.unit,
                 value: point.standard.value,
                 unit: point.standard.unit,
                 image_base64: point.standard.image,
@@ -360,6 +414,70 @@ const App: React.FC = () => {
               humidity: session.humidity
             }}
             onReset={clearSession}
+          />
+        )}
+
+        {step === 'STANDARD_SETUP' && (
+          <div className="flex-grow flex flex-col p-8 overflow-y-auto bg-slate-950">
+            <div className="flex items-center gap-4 mb-10">
+              <button
+                onClick={() => setStep('QUOTATION_ENTRY')}
+                className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500 active:scale-95 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <h3 className="font-black text-2xl text-white italic uppercase">標準件管理 STANDARDS</h3>
+            </div>
+
+            <div className="space-y-4 mb-10">
+              {session.standards.length === 0 ? (
+                <div className="py-20 text-center space-y-4 bg-slate-900/30 rounded-[2.5rem] border border-dashed border-slate-800">
+                  <div className="text-4xl text-slate-800 font-black italic uppercase ml-1">No Standards</div>
+                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest px-10">請先建立本次校正要使用的標準件</p>
+                </div>
+              ) : (
+                session.standards.map(std => (
+                  <div key={std.id} className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {std.image && <img src={std.image} className="w-12 h-12 rounded-xl object-cover bg-black" />}
+                      <div>
+                        <div className="text-white font-black italic">{std.maker}</div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase">{std.model} | {std.serial}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSession(prev => ({ ...prev, standards: prev.standards.filter(s => s.id !== std.id) }))}
+                      className="text-rose-500/50 hover:text-rose-500"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex flex-col gap-4 mt-auto">
+              <button
+                onClick={() => setStep('STANDARD_CAPTURE')}
+                className="w-full py-6 bg-slate-900 border border-slate-800 text-white font-black rounded-[2rem] active:scale-[0.98] transition-all text-xs uppercase tracking-widest"
+              >
+                + 新增標準件 (ADD)
+              </button>
+              <button
+                onClick={() => setStep('EQUIPMENT_LIST')}
+                className="w-full py-6 bg-emerald-500 text-black font-black rounded-[2rem] shadow-2xl shadow-emerald-500/30 active:scale-[0.98] transition-all text-sm uppercase tracking-widest"
+              >
+                下一步: 待校件清單 (DUT LIST)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'STANDARD_CAPTURE' && (
+          <InstrumentCapture
+            mode="identity"
+            onIdentityConfirm={addStandard}
+            onBack={() => setStep('STANDARD_SETUP')}
           />
         )}
 
@@ -689,6 +807,7 @@ const App: React.FC = () => {
               // For standard capture of Temperature, do not enforce point unit (allow Ohm vs C mismatch) e.g. Standard might be Resistance
               expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
               unitOptions={UNIT_OPTIONS[activeType.type]}
+              availableStandards={session.standards}
             />
           )
         }
