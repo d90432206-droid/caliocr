@@ -47,32 +47,51 @@ async def analyze_image(request: AnalyzeRequest):
         image_bytes = base64.b64decode(encoded)
         print(f"Image decoded. Size: {len(image_bytes)} bytes"); sys.stdout.flush()
         
-        # 切換到 Gemini 2.0 Flash (目前最快且配額最高的型號：1500 RPD)
-        model_name = 'gemini-2.0-flash-exp'
-        print(f"Using model: {model_name}"); sys.stdout.flush()
-        model = genai.GenerativeModel(model_name)
+        # 根據您的權限清單，僅嘗試這四種模型
+        models_to_try = [
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite',
+            'gemini-2.5-flash-tts',
+            'gemini-3-flash'
+        ]
         
-        if request.mode == 'identity':
-            prompt = "Identify device nameplate: brand (maker), model (model), serial number (serial_number). Return JSON: {\"maker\": \"...\", \"model\": \"...\", \"serial_number\": \"...\"}. No markdown."
-        else:
-            prompt = f"Identify value and unit for this {request.type} instrument. Return JSON: " + "{\"value\": \"...\", \"unit\": \"...\"}. No markdown."
-
-        print(f"Sending prompt: {prompt}"); sys.stdout.flush()
+        # 第一次啟動時列出所有可用模型 (輔助除錯)
         try:
-            response = model.generate_content([
-                prompt,
-                {"mime_type": "image/jpeg", "data": image_bytes}
-            ])
-            print("Model call successful"); sys.stdout.flush()
-            text = response.text.strip()
-        except Exception as api_err:
-            err_msg = str(api_err)
-            print(f"Gemini API Error: {err_msg}"); sys.stdout.flush()
-            if "429" in err_msg or "quota" in err_msg.lower():
-                return {"error": "quota_exceeded", "message": "AI 辨識太頻繁了 (免費版 API 限制)，請休息 10~20 秒再拍下一張哦！"}
-            if "400" in err_msg:
-                return {"error": "bad_request", "message": "辨識失敗 (圖片不清晰或連線中斷)，請重新拍攝"}
-            return {"error": "api_error", "message": f"AI 辨識異常: {err_msg[:100]}..." }
+            available_models = [m.name for m in genai.list_models()]
+            print(f"Available models for this key: {available_models}"); sys.stdout.flush()
+        except:
+            pass
+        
+        last_error = ""
+        for model_name in models_to_try:
+            try:
+                print(f"--- Attempting model: {model_name} ---"); sys.stdout.flush()
+                model = genai.GenerativeModel(model_name)
+                
+                if request.mode == 'identity':
+                    prompt = "Identify device nameplate: brand (maker), model (model), serial number (serial_number). Return JSON: {\"maker\": \"...\", \"model\": \"...\", \"serial_number\": \"...\"}. No markdown."
+                else:
+                    prompt = f"Identify value and unit for this {request.type} instrument. Return JSON: " + "{\"value\": \"...\", \"unit\": \"...\"}. No markdown."
+
+                response = model.generate_content([
+                    prompt,
+                    {"mime_type": "image/jpeg", "data": image_bytes}
+                ])
+                
+                text = response.text.strip()
+                print(f"Model {model_name} success!"); sys.stdout.flush()
+                break # 成功就跳出迴圈
+                
+            except Exception as api_err:
+                last_error = str(api_err)
+                print(f"Model {model_name} failed. Error: {last_error}"); sys.stdout.flush()
+                continue
+        else:
+            # 如果所有模型都失敗
+            print(f"All models failed. Last error: {last_error}"); sys.stdout.flush()
+            if "429" in last_error or "quota" in last_error.lower():
+                return {"error": "quota_exceeded", "message": "所有 AI 模型額度皆已用盡或被限制 (Limit 0)，請檢查 Google AI Studio 設定或更換帳號。"}
+            return {"error": "api_error", "message": f"AI 辨識異常: {last_error[:100]}..." }
 
         print(f"Raw Model response: {text}"); sys.stdout.flush()
         
