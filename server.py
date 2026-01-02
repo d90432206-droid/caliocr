@@ -47,8 +47,8 @@ async def analyze_image(request: AnalyzeRequest):
         image_bytes = base64.b64decode(encoded)
         print(f"Image decoded. Size: {len(image_bytes)} bytes"); sys.stdout.flush()
         
-        # 根據您的截圖，改用 gemini-2.5-flash 以避免 404
-        model_name = 'gemini-2.5-flash'
+        # 切換到 Gemini 2.0 Flash (目前最快且配額最高的型號：1500 RPD)
+        model_name = 'gemini-2.0-flash-exp'
         print(f"Using model: {model_name}"); sys.stdout.flush()
         model = genai.GenerativeModel(model_name)
         

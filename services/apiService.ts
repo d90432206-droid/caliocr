@@ -18,8 +18,8 @@ export const analyzeInstrument = async (base64Image: string, mode: 'identity' | 
     return response.json();
   }
 
-  // Fallback 到 JS SDK (Gemini 2.5 Flash)
-  const modelName = 'gemini-2.5-flash';
+  // Fallback 到 JS SDK (Gemini 2.0 Flash)
+  const modelName = 'gemini-2.0-flash-exp';
   const prompt = mode === 'identity'
     ? "辨識設備銘牌：廠牌(maker)、型號(model)、序號(serial_number)。回傳 JSON。"
     : `辨識這張 ${type} 儀表的讀數與單位。特別優化 LCD 斷碼數字辨識。回傳 JSON。`;
