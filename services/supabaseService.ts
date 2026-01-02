@@ -92,11 +92,20 @@ export const getRecordsByQuotation = async (quotationNo: string): Promise<Calibr
     console.error("Supabase 未設定，無法獲取紀錄。");
     return [];
   }
-  const { data, error } = await supabase
+
+  let query = supabase
     .from('readings')
-    .select('*')
-    .ilike('quotation_no', quotationNo)
-    .order('created_at', { ascending: true });
+    .select('*');
+
+  if (quotationNo && quotationNo.trim()) {
+    query = query.ilike('quotation_no', quotationNo.trim());
+  } else {
+    // 如果沒有輸入單號，顯示最近 50 筆
+    query = query.limit(50);
+  }
+
+  // 預設按時間倒序 (最新的在上面)
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     console.error("獲取紀錄失敗:", error);

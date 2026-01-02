@@ -27,7 +27,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     const [hasSearched, setHasSearched] = useState(false);
 
     const handleSearch = async () => {
-        if (!quotationNo.trim()) return;
+        // if (!quotationNo.trim()) return; // 移除此行，允許空搜尋
         setIsLoading(true);
         setHasSearched(true);
         try {
@@ -41,9 +41,8 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     };
 
     React.useEffect(() => {
-        if (initialQuotationNo) {
-            handleSearch();
-        }
+        // 初始載入：如果有單號查單號，沒有單號則查最近 50 筆
+        handleSearch();
     }, [initialQuotationNo]);
 
     const exportToCSV = () => {
@@ -145,7 +144,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                         disabled={isLoading}
                         className="px-8 py-4 bg-emerald-500 text-black font-black rounded-2xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50"
                     >
-                        {isLoading ? '搜尋中...' : '搜尋'}
+                        {isLoading ? '搜尋中...' : (quotationNo ? '搜尋' : '顯示最近 50 筆')}
                     </button>
 
                     {records.length > 0 && (
