@@ -571,7 +571,10 @@ const App: React.FC = () => {
         )}
 
         {step === 'HISTORY_VIEW' && (
-          <CalibrationHistory onBack={() => setStep('QUOTATION_ENTRY')} />
+          <CalibrationHistory
+            onBack={() => setStep('QUOTATION_ENTRY')}
+            initialQuotationNo={session.quotation_no}
+          />
         )}
       </main>
     </div>

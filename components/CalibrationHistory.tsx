@@ -3,6 +3,7 @@ import { getRecordsByQuotation, CalibrationRecord } from '../services/supabaseSe
 
 interface Props {
     onBack: () => void;
+    initialQuotationNo?: string;
 }
 
 // 定義 CSV 欄位
@@ -19,8 +20,8 @@ const CATEGORY_LABELS: Record<string, string> = {
     digital_pressure: '數字壓力計 Digital'
 };
 
-const CalibrationHistory: React.FC<Props> = ({ onBack }) => {
-    const [quotationNo, setQuotationNo] = useState('');
+const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => {
+    const [quotationNo, setQuotationNo] = useState(initialQuotationNo || '');
     const [records, setRecords] = useState<CalibrationRecord[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
@@ -38,6 +39,12 @@ const CalibrationHistory: React.FC<Props> = ({ onBack }) => {
             setIsLoading(false);
         }
     };
+
+    React.useEffect(() => {
+        if (initialQuotationNo) {
+            handleSearch();
+        }
+    }, [initialQuotationNo]);
 
     const exportToCSV = () => {
         if (records.length === 0) return;
