@@ -326,6 +326,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">量測類型</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">標準值</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">實測數值</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">建立時間</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">照片</th>
                                     </tr>
                                 </thead>
@@ -348,10 +349,15 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                                 </span>
                                             </td>
                                             <td className="p-6 text-xl font-bold text-slate-400">
-                                                {record.standard_value === 'N/A' ? '--' : record.standard_value}
+                                                {record.standard_value === 'N/A'
+                                                    ? '--'
+                                                    : <>{record.standard_value} <small className="text-slate-600">{record.unit}</small></>}
                                             </td>
                                             <td className="p-6 text-2xl font-black text-white italic">
                                                 {record.value} <span className="text-xs text-slate-500 font-medium not-italic ml-1">{record.unit}</span>
+                                            </td>
+                                            <td className="p-6 text-right text-xs text-slate-500 font-mono">
+                                                {new Date(record.created_at).toLocaleString()}
                                             </td>
                                             <td className="p-6 text-right">
                                                 {record.image_url || record.image_base64 ? (
