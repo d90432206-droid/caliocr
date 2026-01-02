@@ -84,19 +84,18 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     const exportToCSV = () => {
         if (displayRecords.length === 0) return;
 
-        const headers = ['報價單號', '案號/設備ID', '廠牌', '型號', '序號', '量測類型', '標準值', '實測值', '單位', '照片網址', '建立時間'];
+        const headers = ['報價單號', '項次', '廠牌', '型號', '序號', '量測類型', '標準值', '實測值', '單位', '照片網址', '建立時間'];
         const csvContent = [
             headers.join(','),
-            ...displayRecords.map(r => [
+            ...displayRecords.map((r, index) => [
                 `"${r.quotation_no}"`,
-                `"${r.equipment_id}"`,
+                `"${index + 1}"`,
                 `"${r.maker}"`,
                 `"${r.model}"`,
                 `"${r.serial_number}"`,
                 `"${CATEGORY_LABELS[r.reading_type] || r.reading_type}"`,
                 `"${r.standard_value || ''}"`,
                 `"${r.value}"`,
-                `"${r.unit}"`,
                 `"${r.unit}"`,
                 `"${(r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image'}"`,
                 `"${new Date(r.created_at).toLocaleString()}"`
@@ -144,7 +143,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                 <table>
                     <thead>
                         <tr>
-                            <th>設備 ID</th>
+                            <th>項次</th>
                             <th>廠牌 / 型號</th>
                             <th>序號</th>
                             <th>量測類型</th>
@@ -154,9 +153,9 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                         </tr>
                     </thead>
                     <tbody>
-                        ${displayRecords.map(r => `
+                        ${displayRecords.map((r, i) => `
                             <tr>
-                                <td>${r.equipment_id}</td>
+                                <td>${i + 1}</td>
                                 <td>${r.maker}<br><small>${r.model}</small></td>
                                 <td>${r.serial_number}</td>
                                 <td><span class="tag">${CATEGORY_LABELS[r.reading_type] || r.reading_type}</span></td>
@@ -321,7 +320,8 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-800 bg-slate-900/50 sticky top-0 backdrop-blur-md z-10">
-                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">設備/型號</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">項次 No.</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">廠牌 / 型號</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">序號</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">量測類型</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">標準值</th>
@@ -330,11 +330,14 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-800/50">
-                                    {displayRecords.map((record) => (
+                                    {displayRecords.map((record, index) => (
                                         <tr key={record.id} className="hover:bg-white/5 transition-colors">
                                             <td className="p-6">
-                                                <div className="text-white font-bold">{record.equipment_id}</div>
-                                                <div className="text-[10px] text-slate-500 font-medium uppercase">{record.maker} {record.model}</div>
+                                                <div className="text-white font-bold text-xl opacity-50">#{index + 1}</div>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="text-white font-bold">{record.maker || '--'}</div>
+                                                <div className="text-[10px] text-slate-500 font-medium uppercase">{record.model || '--'}</div>
                                             </td>
                                             <td className="p-6">
                                                 <span className="text-sm font-mono text-slate-300 bg-slate-800 px-2 py-1 rounded border border-slate-700">{record.serial_number}</span>
