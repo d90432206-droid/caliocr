@@ -70,11 +70,17 @@ export const CATEGORY_LABELS: Record<string, string> = {
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('QUOTATION_ENTRY');
   const [session, setSession] = useState({
-    quotation_no: '',
-    customer_name: '',
+    quotation_no: localStorage.getItem('quotation_no') || '',
+    customer_name: localStorage.getItem('customer_name') || '',
     items: [] as EquipmentItem[],
     standardCache: {} as Record<string, { value: string, unit: string, image: string }>
   });
+
+  // Persist session to localStorage
+  React.useEffect(() => {
+    if (session.quotation_no) localStorage.setItem('quotation_no', session.quotation_no);
+    if (session.customer_name) localStorage.setItem('customer_name', session.customer_name);
+  }, [session.quotation_no, session.customer_name]);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
