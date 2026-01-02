@@ -39,26 +39,18 @@ export const saveCalibrationRecord = async (record: CalibrationRecord) => {
 
   let imageUrl = '';
 
-  // 1. 如果有圖片，先上傳到 Storage
+  // 1. 直接將 Base64 存入 image_url (避免 Storage Bucket 設定問題)
+  // 由於圖片已在前端壓縮 (800px, 0.6 quality)，大小約為 30-80KB，直接存入資料庫是可行且最穩定的。
   if (record.image_base64) {
-    const fileName = `${record.quotation_no}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-    const base64Data = record.image_base64.split(',')[1];
-    const blob = await fetch(`data:image/jpeg;base64,${base64Data}`).then(res => res.blob());
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('photos')
-      .upload(fileName, blob, { contentType: 'image/jpeg' });
-
-    if (uploadError) {
-      console.error("圖片上傳失敗:", uploadError);
-    } else {
-      // 獲取公開 URL (假設 bucket 是公開的)
-      const { data: { publicUrl } } = supabase.storage
-        .from('photos')
-        .getPublicUrl(fileName);
-      imageUrl = publicUrl;
-    }
+    imageUrl = record.image_base64;
   }
+
+  /* 
+  // 舊的 Storage 上傳邏輯 (暫時停用以確保穩定性)
+  if (record.image_base64) {
+    // ...
+  } 
+  */
 
   // 2. 插入資料到資料庫
   const { data, error } = await supabase
