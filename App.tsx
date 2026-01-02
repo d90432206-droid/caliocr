@@ -100,6 +100,18 @@ const App: React.FC = () => {
     setStep('EQUIPMENT_LIST');
   };
 
+  const clearSession = () => {
+    setSession({
+      quotation_no: '',
+      customer_name: '',
+      items: [],
+      standardCache: {}
+    });
+    localStorage.removeItem('quotation_no');
+    localStorage.removeItem('customer_name');
+    setStep('QUOTATION_ENTRY');
+  };
+
   const startNewItem = () => {
     setStep('IDENTITY_CAPTURE');
   };
@@ -578,7 +590,7 @@ const App: React.FC = () => {
 
         {step === 'HISTORY_VIEW' && (
           <CalibrationHistory
-            onBack={() => setStep('QUOTATION_ENTRY')}
+            onBack={clearSession}
             initialQuotationNo={session.quotation_no}
           />
         )}

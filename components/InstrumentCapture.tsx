@@ -61,10 +61,21 @@ const InstrumentCapture: React.FC<Props> = ({
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       if (context) {
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
-        context.drawImage(videoRef.current, 0, 0);
-        const quality = isManual ? 0.5 : 0.9;
+        const MAX_WIDTH = 800;
+        let width = videoRef.current.videoWidth;
+        let height = videoRef.current.videoHeight;
+
+        if (width > MAX_WIDTH) {
+          const scale = MAX_WIDTH / width;
+          width = MAX_WIDTH;
+          height = height * scale;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        context.drawImage(videoRef.current, 0, 0, width, height);
+
+        const quality = isManual ? 0.6 : 0.9;
         const imgData = canvas.toDataURL('image/jpeg', quality);
 
         if (imgData.length < 100) {
