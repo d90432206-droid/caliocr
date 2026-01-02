@@ -94,7 +94,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                 `"${r.model}"`,
                 `"${r.serial_number}"`,
                 `"${CATEGORY_LABELS[r.reading_type] || r.reading_type}"`,
-                `"${r.standard_value || ''}"`,
+                `"${r.standard_value || ''}${r.standard_value && r.standard_value !== 'N/A' && r.unit ? ' ' + r.unit : ''}"`,
                 `"${r.value}"`,
                 `"${r.unit}"`,
                 `"${(r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image'}"`,
@@ -159,7 +159,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                 <td>${r.maker}<br><small>${r.model}</small></td>
                                 <td>${r.serial_number}</td>
                                 <td><span class="tag">${CATEGORY_LABELS[r.reading_type] || r.reading_type}</span></td>
-                                <td>${r.standard_value || '--'}</td>
+                                <td>${r.standard_value || ''}${r.standard_value && r.standard_value !== 'N/A' && r.unit ? ' ' + r.unit : ''}</td>
                                 <td><b>${r.value}</b> <small>${r.unit}</small></td>
                                 <td>
                                     ${(r.image_url || r.image_base64)
