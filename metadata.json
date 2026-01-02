@@ -1,0 +1,7 @@
+{
+  "name": "Industrial Instrument Reader",
+  "description": "A mobile-first application designed for industrial field workers to capture and OCR readings from analog and digital instrument displays using the Gemini API.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
