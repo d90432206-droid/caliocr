@@ -10,13 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
 
-# Gemini API Key (Gemini 2.0 Flash)
-api_key = "AIzaSyBDIaeqHtNXkbkDuMkyTdJXDNyvO30-5N8"
-
-if api_key:
-    print(f"API Key loaded (first 4): {api_key[:4]}")
-
-genai.configure(api_key=api_key)
+# API Key 池 (輪替使用以增加總額度)
+api_keys = [
+    "AIzaSyBDIaeqHtNXkbkDuMkyTdJXDNyvO30-5N8",
+    "AIzaSyCdah2jZhtA1y0Pk4r8BtGOHBwAim2KEVI",
+    "AIzaSyAc598l6q8lQNUrXBJqaTSQQkk8qDyMKtk"
+]
 
 app = FastAPI()
 
@@ -37,7 +36,6 @@ class AnalyzeRequest(BaseModel):
 async def analyze_image(request: AnalyzeRequest):
     try:
         print(f"--- New Request ---"); sys.stdout.flush()
-        print(f"Mode: {request.mode}, Type: {request.type}"); sys.stdout.flush()
         
         if "," in request.image_base64:
             encoded = request.image_base64.split(",", 1)[1]
@@ -45,7 +43,6 @@ async def analyze_image(request: AnalyzeRequest):
             encoded = request.image_base64
         
         image_bytes = base64.b64decode(encoded)
-        print(f"Image decoded. Size: {len(image_bytes)} bytes"); sys.stdout.flush()
         
         # 根據您的權限清單，僅嘗試這四種模型
         models_to_try = [
@@ -55,43 +52,49 @@ async def analyze_image(request: AnalyzeRequest):
             'gemini-3-flash'
         ]
         
-        # 第一次啟動時列出所有可用模型 (輔助除錯)
-        try:
-            available_models = [m.name for m in genai.list_models()]
-            print(f"Available models for this key: {available_models}"); sys.stdout.flush()
-        except:
-            pass
-        
         last_error = ""
-        for model_name in models_to_try:
-            try:
-                print(f"--- Attempting model: {model_name} ---"); sys.stdout.flush()
-                model = genai.GenerativeModel(model_name)
-                
-                if request.mode == 'identity':
-                    prompt = "Identify device nameplate: brand (maker), model (model), serial number (serial_number). Return JSON: {\"maker\": \"...\", \"model\": \"...\", \"serial_number\": \"...\"}. No markdown."
-                else:
-                    prompt = f"Identify value and unit for this {request.type} instrument. Return JSON: " + "{\"value\": \"...\", \"unit\": \"...\"}. No markdown."
+        success_text = None
 
-                response = model.generate_content([
-                    prompt,
-                    {"mime_type": "image/jpeg", "data": image_bytes}
-                ])
+        # 兩層式輪替：外層換 Key，內層換模型
+        for current_key in api_keys:
+            try:
+                print(f"Trying Key (first 4): {current_key[:4]}..."); sys.stdout.flush()
+                genai.configure(api_key=current_key)
                 
-                text = response.text.strip()
-                print(f"Model {model_name} success!"); sys.stdout.flush()
-                break # 成功就跳出迴圈
+                for model_name in models_to_try:
+                    try:
+                        print(f"  > Attempting model: {model_name}"); sys.stdout.flush()
+                        model = genai.GenerativeModel(model_name)
+                        
+                        if request.mode == 'identity':
+                            prompt = "Identify device nameplate: brand (maker), model (model), serial number (serial_number). Return JSON: {\"maker\": \"...\", \"model\": \"...\", \"serial_number\": \"...\"}. No markdown."
+                        else:
+                            prompt = f"Identify value and unit for this {request.type} instrument. Return JSON: " + "{\"value\": \"...\", \"unit\": \"...\"}. No markdown."
+
+                        response = model.generate_content([
+                            prompt,
+                            {"mime_type": "image/jpeg", "data": image_bytes}
+                        ])
+                        
+                        success_text = response.text.strip()
+                        print(f"  [SUCCESS] Model {model_name} with Key {current_key[:4]}!"); sys.stdout.flush()
+                        break 
+                    except Exception as mod_err:
+                        last_error = str(mod_err)
+                        print(f"  [FAIL] Model {model_name}: {last_error[:50]}..."); sys.stdout.flush()
+                        continue
                 
-            except Exception as api_err:
-                last_error = str(api_err)
-                print(f"Model {model_name} failed. Error: {last_error}"); sys.stdout.flush()
+                if success_text:
+                    break # 已拿到結果，跳出 Key 輪替
+            except Exception as key_err:
+                print(f"Key Error: {str(key_err)[:50]}"); sys.stdout.flush()
                 continue
-        else:
-            # 如果所有模型都失敗
-            print(f"All models failed. Last error: {last_error}"); sys.stdout.flush()
-            if "429" in last_error or "quota" in last_error.lower():
-                return {"error": "quota_exceeded", "message": "所有 AI 模型額度皆已用盡或被限制 (Limit 0)，請檢查 Google AI Studio 設定或更換帳號。"}
-            return {"error": "api_error", "message": f"AI 辨識異常: {last_error[:100]}..." }
+
+        if not success_text:
+            print(f"All keys and models failed. Last error: {last_error}"); sys.stdout.flush()
+            return {"error": "quota_exceeded", "message": "三組 API Key 的額度皆已用盡，請明天再試或更換更多 Key。"}
+
+        text = success_text
 
         print(f"Raw Model response: {text}"); sys.stdout.flush()
         
