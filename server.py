@@ -47,8 +47,8 @@ async def analyze_image(request: AnalyzeRequest):
         image_bytes = base64.b64decode(encoded)
         print(f"Image decoded. Size: {len(image_bytes)} bytes"); sys.stdout.flush()
         
-        # 根據測試，目前的 API Key 僅在 gemini-3-flash-preview 有可用配額
-        model_name = 'gemini-3-flash-preview'
+        # 切換到 Gemini 2.0 Flash (目前最快且配額最新的型號)
+        model_name = 'gemini-2.0-flash-exp'
         print(f"Using model: {model_name}"); sys.stdout.flush()
         model = genai.GenerativeModel(model_name)
         
@@ -69,7 +69,7 @@ async def analyze_image(request: AnalyzeRequest):
             err_msg = str(api_err)
             print(f"Gemini API Error: {err_msg}"); sys.stdout.flush()
             if "429" in err_msg or "quota" in err_msg.lower():
-                return {"error": "quota_exceeded", "message": "辨識超量 (每分鐘限制)，請稍等 1 分鐘後再拍下一張"}
+                return {"error": "quota_exceeded", "message": "AI 辨識太頻繁了 (免費版 API 限制)，請休息 10~20 秒再拍下一張哦！"}
             if "400" in err_msg:
                 return {"error": "bad_request", "message": "辨識失敗 (圖片不清晰或連線中斷)，請重新拍攝"}
             return {"error": "api_error", "message": f"AI 辨識異常: {err_msg[:100]}..." }
