@@ -84,7 +84,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
     const exportToCSV = () => {
         if (displayRecords.length === 0) return;
 
-        const headers = ['報價單號', '項次', '廠牌', '型號', '序號', '量測類型', '標準值', '標準單位', '實測值', '單位', '照片網址', '建立時間'];
+        const headers = ['報價單號', '項次', '廠牌', '型號', '序號', '量測類型', '標準值', '標準單位', '標準儀器', '實測值', '單位', '照片網址', '建立時間'];
         const csvContent = [
             headers.join(','),
             ...displayRecords.map((r, index) => {
@@ -97,6 +97,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                     CATEGORY_LABELS[r.reading_type] || r.reading_type,
                     r.standard_value || '',
                     r.standard_value === 'N/A' ? '' : (r.std_unit || r.unit || ''),
+                    r.std_maker ? `${r.std_maker} ${r.std_model} (SN: ${r.std_serial})` : '',
                     r.value || '',
                     r.unit || '',
                     (r.image_url || r.image_base64) ? '請參閱HTML報表 (View HTML)' : 'No Image',
@@ -330,6 +331,7 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">量測類型</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">標準值</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">單位</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">標準儀器</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">實測數值</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">建立時間</th>
                                         <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">照片</th>
@@ -360,6 +362,10 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                                                 <span className="text-xs text-slate-500 font-medium">
                                                     {record.standard_value === 'N/A' ? '--' : (record.std_unit || record.unit)}
                                                 </span>
+                                            </td>
+                                            <td className="p-6">
+                                                <div className="text-[11px] text-white font-bold">{record.std_maker || '--'}</div>
+                                                <div className="text-[9px] text-slate-500">{record.std_model || '--'} | {record.std_serial || '--'}</div>
                                             </td>
                                             <td className="p-6 text-2xl font-black text-white italic">
                                                 {record.value} <span className="text-xs text-slate-500 font-medium not-italic ml-1">{record.unit}</span>

@@ -49,6 +49,9 @@ interface ReadingData {
   unit: string;
   timestamp: string;
   seq: number;
+  maker?: string;
+  model?: string;
+  serial?: string;
 }
 
 interface CalibrationPoint {
@@ -280,7 +283,20 @@ const App: React.FC = () => {
                   if (newLength >= t.maxReadings) {
                     shouldGoBack = true;
                   }
-                  return { ...p, readings: [...p.readings, { ...commonData, seq: newLength }] };
+                  // Attach current standard info to the DUT reading
+                  return {
+                    ...p,
+                    readings: [
+                      ...p.readings,
+                      {
+                        ...commonData,
+                        seq: newLength,
+                        maker: p.standard?.maker,
+                        model: p.standard?.model,
+                        serial: p.standard?.serial
+                      }
+                    ]
+                  };
                 }
               })
             };
@@ -343,10 +359,10 @@ const App: React.FC = () => {
                 ...item.identity,
                 reading_type: `${mType.type}_STANDARD`,
                 standard_value: point.targetValue,
-                std_maker: point.standard?.maker,
-                std_model: point.standard?.model,
-                std_serial: point.standard?.serial,
-                std_unit: point.standard?.unit,
+                std_maker: point.standard.maker,
+                std_model: point.standard.model,
+                std_serial: point.standard.serial,
+                std_unit: point.standard.unit,
                 value: point.standard.value,
                 unit: point.standard.unit,
                 image_base64: point.standard.image,
@@ -362,6 +378,10 @@ const App: React.FC = () => {
                 ...item.identity,
                 reading_type: mType.type,
                 standard_value: point.targetValue,
+                std_maker: point.standard?.maker,
+                std_model: point.standard?.model,
+                std_serial: point.standard?.serial,
+                std_unit: point.standard?.unit,
                 value: r.value,
                 unit: r.unit,
                 frequency: point.frequency,
@@ -808,6 +828,11 @@ const App: React.FC = () => {
               expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
               unitOptions={UNIT_OPTIONS[activeType.type]}
               availableStandards={session.standards}
+              activeStandardInfo={activePoint.standard ? {
+                maker: activePoint.standard.maker || '',
+                model: activePoint.standard.model || '',
+                serial: activePoint.standard.serial || ''
+              } : undefined}
             />
           )
         }

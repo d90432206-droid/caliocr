@@ -17,10 +17,11 @@ interface Props {
   expectedUnit?: string;
   unitOptions?: string[];
   availableStandards?: Array<{ id: string; maker: string; model: string; serial: string; image?: string }>;
+  activeStandardInfo?: { maker: string; model: string; serial: string };
 }
 
 const InstrumentCapture: React.FC<Props> = ({
-  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit, unitOptions, availableStandards
+  mode, type, onReadingConfirm, onIdentityConfirm, onBack, currentIndex, totalIndex, lockedStandard, onUnlock, isCapturingStandard, expectedUnit, unitOptions, availableStandards, activeStandardInfo
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCaptured, setIsCaptured] = useState(false);
@@ -288,6 +289,21 @@ const InstrumentCapture: React.FC<Props> = ({
                     />
                   )}
                 </div>
+
+                {/* Show Active Standard for DUT Readings */}
+                {!isCapturingStandard && activeStandardInfo && (
+                  <div className="mt-6 pt-4 border-t border-slate-800 animate-in slide-in-from-bottom-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-1 h-3 bg-blue-500 rounded-full"></div>
+                      <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">目前關聯標準件 CURRENT STANDARD</span>
+                    </div>
+                    <div className="bg-blue-500/5 border border-blue-500/20 p-3 rounded-xl">
+                      <div className="text-white font-black italic text-xs">{activeStandardInfo.maker}</div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase">{activeStandardInfo.model} | {activeStandardInfo.serial}</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Standard Info Selection/Inputs */}
                 {isCapturingStandard && (
                   <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 animate-in slide-in-from-bottom-2">
