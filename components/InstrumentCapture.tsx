@@ -61,19 +61,33 @@ const InstrumentCapture: React.FC<Props> = ({
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       if (context) {
-        const MAX_WIDTH = 800;
-        let width = videoRef.current.videoWidth;
-        let height = videoRef.current.videoHeight;
+        // 1. 計算裁切區域 (Green Box: 80% width, 5/3 aspect ratio)
+        // 假設視訊畫面是滿版置中 (object-cover)，我們取視訊源的中央區域進行裁切
+        const cropWidth = videoRef.current.videoWidth * 0.8;
+        const cropHeight = cropWidth * (3 / 5); // Aspect Ratio 5:3
+        const sx = (videoRef.current.videoWidth - cropWidth) / 2;
+        const sy = (videoRef.current.videoHeight - cropHeight) / 2;
 
-        if (width > MAX_WIDTH) {
-          const scale = MAX_WIDTH / width;
-          width = MAX_WIDTH;
-          height = height * scale;
+        // 2. 設定目標尺寸 (Max Width 800px)
+        const MAX_WIDTH = 800;
+        let destWidth = cropWidth;
+        let destHeight = cropHeight;
+
+        if (destWidth > MAX_WIDTH) {
+          const scale = MAX_WIDTH / destWidth;
+          destWidth = MAX_WIDTH;
+          destHeight = destHeight * scale;
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        context.drawImage(videoRef.current, 0, 0, width, height);
+        canvas.width = destWidth;
+        canvas.height = destHeight;
+
+        // 3. 執行裁切與縮放繪製
+        context.drawImage(
+          videoRef.current,
+          sx, sy, cropWidth, cropHeight, // Source: Crop Area
+          0, 0, destWidth, destHeight    // Destination: Resized Area
+        );
 
         const quality = isManual ? 0.6 : 0.9;
         const imgData = canvas.toDataURL('image/jpeg', quality);
