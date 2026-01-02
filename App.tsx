@@ -240,7 +240,7 @@ const App: React.FC = () => {
 
       const newCache = { ...prev.standardCache };
       if (isCapturingStandard) {
-        newCache[activePoint.targetValue] = { value, unit, image };
+        newCache[`${activeType.type}_${activePoint.targetValue}`] = { value, unit, image };
       }
 
       return { ...prev, items: newItems, standardCache: newCache };
@@ -252,9 +252,10 @@ const App: React.FC = () => {
   };
 
   const unlockStandard = (targetValue: string) => {
+    if (!activeType) return;
     setSession(prev => {
       const newCache = { ...prev.standardCache };
-      delete newCache[targetValue];
+      delete newCache[`${activeType.type}_${targetValue}`];
       return { ...prev, standardCache: newCache };
     });
   };
@@ -681,7 +682,7 @@ const App: React.FC = () => {
               onBack={() => setStep('POINT_LIST')}
               currentIndex={activePoint.standard ? activePoint.readings.length + 1 : undefined}
               totalIndex={activeType.maxReadings}
-              lockedStandard={!activePoint.standard ? session.standardCache[activePoint.targetValue] : undefined}
+              lockedStandard={!activePoint.standard ? session.standardCache[`${activeType.type}_${activePoint.targetValue}`] : undefined}
               onUnlock={() => unlockStandard(activePoint.targetValue)}
               // New prop to clarify mode
               isCapturingStandard={!activePoint.standard}
