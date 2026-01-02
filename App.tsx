@@ -453,6 +453,10 @@ const App: React.FC = () => {
                   <div className="text-[10px] text-slate-500 uppercase">Case ID</div>
                   <div className="text-xl font-black text-white">{activeItem.equipment_id}</div>
                 </div>
+                <div>
+                  <div className="text-[10px] text-slate-500 uppercase">Maker</div>
+                  <div className="text-lg font-bold text-white">{activeItem.identity.maker || '--'}</div>
+                </div>
                 <div className="grid grid-cols-2 gap-4 border-t border-slate-800 pt-4">
                   <div>
                     <div className="text-[10px] text-slate-500 uppercase">Model</div>
