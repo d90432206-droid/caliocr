@@ -113,6 +113,78 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
         document.body.removeChild(link);
     };
 
+    const exportToHTML = () => {
+        if (displayRecords.length === 0) return;
+
+        const dateStr = new Date().toLocaleString();
+        const title = `校正報告 - ${selectedQuotation || 'All'} - ${activeTab}`;
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>${title}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; }
+                    h1 { color: #333; }
+                    .info { margin-bottom: 20px; color: #666; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: middle; }
+                    th { bg-color: #f2f2f2; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    img { max-width: 150px; max-height: 150px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                    .tag { display: inline-block; padding: 4px 8px; background: #e0f2f1; color: #00695c; border-radius: 4px; font-size: 12px; font-weight: bold; }
+                </style>
+            </head>
+            <body>
+                <h1>${title}</h1>
+                <div class="info">匯出時間: ${dateStr}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>設備 ID</th>
+                            <th>廠牌 / 型號</th>
+                            <th>序號</th>
+                            <th>量測類型</th>
+                            <th>標準值</th>
+                            <th>實測值</th>
+                            <th>照片</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${displayRecords.map(r => `
+                            <tr>
+                                <td>${r.equipment_id}</td>
+                                <td>${r.maker}<br><small>${r.model}</small></td>
+                                <td>${r.serial_number}</td>
+                                <td><span class="tag">${CATEGORY_LABELS[r.reading_type] || r.reading_type}</span></td>
+                                <td>${r.standard_value || '--'}</td>
+                                <td><b>${r.value}</b> <small>${r.unit}</small></td>
+                                <td>
+                                    ${(r.image_url || r.image_base64)
+                ? `<img src="${r.image_url || r.image_base64}" alt="Evidence" />`
+                : '<span style="color:#ccc; font-style:italic">No Image</span>'
+            }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${selectedQuotation}_${activeTab}_report.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     return (
         <div className="flex-grow flex flex-col p-6 lg:p-12 overflow-y-auto bg-slate-950">
             {/* Header */}
@@ -158,13 +230,22 @@ const CalibrationHistory: React.FC<Props> = ({ onBack, initialQuotationNo }) => 
                 )}
 
                 {selectedQuotation && (
-                    <button
-                        onClick={exportToCSV}
-                        className="px-6 py-4 bg-emerald-500 text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center gap-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        匯出此頁 ({activeTab})
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={exportToHTML}
+                            className="px-6 py-4 bg-white text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center gap-2 hover:bg-slate-100"
+                        >
+                            <svg className="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            匯出 HTML 報表 (含圖)
+                        </button>
+                        <button
+                            onClick={exportToCSV}
+                            className="px-6 py-4 bg-emerald-500 text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            匯出 CSV
+                        </button>
+                    </div>
                 )}
             </div>
 
