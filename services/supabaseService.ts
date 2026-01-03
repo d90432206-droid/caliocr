@@ -43,14 +43,18 @@ export interface QuotationTemplate {
   items: any[]; // High-level structure for pre-setup items
 }
 
+export interface CalibrationReport {
+  report_no: string;
+  expiry_date: string;
+}
+
 export interface StandardInstrument {
   id: string;
   maker: string;
   model: string;
   serial_number: string;
-  categories: string; // e.g. "DCV, DCA, Temperature"
-  calibration_expiry?: string;
-  report_no?: string;
+  categories: string[]; // 改為陣列
+  reports: CalibrationReport[]; // 支援多個報告與有效日期
   image_url?: string;
 }
 

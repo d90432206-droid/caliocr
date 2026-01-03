@@ -32,9 +32,8 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
         maker: '',
         model: '',
         serial_number: '',
-        categories: '',
-        calibration_expiry: '',
-        report_no: ''
+        categories: [], // Changed to array
+        reports: [{ report_no: '', expiry_date: '' }] // Changed to array of objects
     });
 
     useEffect(() => {
@@ -59,14 +58,24 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
 
     const handleSaveStandard = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newStd.maker || !newStd.model || !newStd.serial_number) {
-            alert("請填寫基本資訊");
+        const validReports = newStd.reports.filter(r => r.report_no || r.expiry_date);
+        if (!newStd.maker || !newStd.model || !newStd.serial_number || validReports.length === 0) {
+            alert("請填寫基本資訊與至少一個校正報告");
             return;
         }
         setIsLoading(true);
         try {
-            await saveStandardInstrument(newStd);
-            setNewStd({ maker: '', model: '', serial_number: '', categories: '', calibration_expiry: '', report_no: '' });
+            await saveStandardInstrument({
+                ...newStd,
+                reports: validReports
+            });
+            setNewStd({
+                maker: '',
+                model: '',
+                serial_number: '',
+                categories: [],
+                reports: [{ report_no: '', expiry_date: '' }]
+            });
             await loadStandards();
             alert("標準件儲存成功");
         } catch (err) {
@@ -241,20 +250,80 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
                                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">序號 S/N</label>
                                         <input value={newStd.serial_number} onChange={e => setNewStd({ ...newStd, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-emerald-500 transition-all font-mono" placeholder="S/N 12345" />
                                     </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">校正量別 Categories (逗號分隔)</label>
-                                        <input value={newStd.categories} onChange={e => setNewStd({ ...newStd, categories: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-emerald-500 transition-all" placeholder="e.g. DCV, DCA, OHM, ACV" />
+                                    <div className="space-y-4 md:col-span-3">
+                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">校正量別 Categories</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const cats = newStd.categories.includes(key)
+                                                            ? newStd.categories.filter(c => c !== key)
+                                                            : [...newStd.categories, key];
+                                                        setNewStd({ ...newStd, categories: cats });
+                                                    }}
+                                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${newStd.categories.includes(key) ? 'bg-emerald-500 text-black border-emerald-500' : 'bg-slate-950 text-slate-500 border-slate-800'}`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">上次校正報告編號 Report No.</label>
-                                        <input value={newStd.report_no} onChange={e => setNewStd({ ...newStd, report_no: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-emerald-500 transition-all" placeholder="e.g. R2023-001" />
+
+                                    <div className="md:col-span-3 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">校正報告及其有效期 Calibration Reports</label>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewStd({ ...newStd, reports: [...newStd.reports, { report_no: '', expiry_date: '' }] })}
+                                                className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20"
+                                            >
+                                                + 新增報告
+                                            </button>
+                                        </div>
+                                        {newStd.reports.map((report, rIdx) => (
+                                            <div key={rIdx} className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50 animate-in slide-in-from-top-2">
+                                                <div className="md:col-span-3 space-y-2">
+                                                    <label className="text-[9px] font-bold text-slate-600 uppercase">報告編號 Report No.</label>
+                                                    <input
+                                                        value={report.report_no}
+                                                        onChange={e => {
+                                                            const rs = [...newStd.reports];
+                                                            rs[rIdx].report_no = e.target.value;
+                                                            setNewStd({ ...newStd, reports: rs });
+                                                        }}
+                                                        className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl outline-none focus:border-emerald-500 text-xs font-black"
+                                                        placeholder="e.g. R2024-001"
+                                                    />
+                                                </div>
+                                                <div className="md:col-span-3 space-y-2">
+                                                    <label className="text-[9px] font-bold text-slate-600 uppercase">有效日期 Expiry Date</label>
+                                                    <input
+                                                        type="date"
+                                                        value={report.expiry_date}
+                                                        onChange={e => {
+                                                            const rs = [...newStd.reports];
+                                                            rs[rIdx].expiry_date = e.target.value;
+                                                            setNewStd({ ...newStd, reports: rs });
+                                                        }}
+                                                        className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl outline-none focus:border-emerald-500 text-xs font-black"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={newStd.reports.length === 1}
+                                                    onClick={() => setNewStd({ ...newStd, reports: newStd.reports.filter((_, i) => i !== rIdx) })}
+                                                    className="p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl disabled:opacity-30 transition-all flex justify-center"
+                                                >
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">前回校正有效日期 Expiry Date</label>
-                                        <input type="date" value={newStd.calibration_expiry} onChange={e => setNewStd({ ...newStd, calibration_expiry: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-4 rounded-xl outline-none focus:border-emerald-500 transition-all" />
-                                    </div>
+
                                     <div className="md:col-span-3 pt-4">
-                                        <button type="submit" disabled={isLoading} className="w-full py-4 bg-emerald-600 text-black font-black rounded-2xl hover:bg-emerald-500 shadow-lg disabled:opacity-50 transition-all uppercase tracking-widest text-sm">儲存標準件資料</button>
+                                        <button type="submit" disabled={isLoading} className="w-full py-4 bg-emerald-600 text-black font-black rounded-2xl hover:bg-emerald-500 shadow-lg disabled:opacity-50 transition-all uppercase tracking-widest text-sm">儲存標準器與校正紀錄</button>
                                     </div>
                                 </form>
                             </div>
@@ -272,13 +341,26 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
                                                 <div className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full text-[9px] font-black border border-emerald-500/20 uppercase tracking-widest">ACTIVE</div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 border-t border-slate-800/50 pt-4">
-                                                <div>
-                                                    <div className="text-[9px] font-bold text-slate-500 uppercase">預估量別</div>
-                                                    <div className="text-[10px] font-black text-slate-300">{std.categories || '未定義'}</div>
+                                                <div className="col-span-2">
+                                                    <div className="text-[9px] font-bold text-slate-500 uppercase mb-1">對應量別 Categories</div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {std.categories?.map(cat => (
+                                                            <span key={cat} className="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700 font-black uppercase">{CATEGORY_LABELS[cat] || cat}</span>
+                                                        ))}
+                                                        {(!std.categories || std.categories.length === 0) && <span className="text-[8px] text-slate-600">未定義</span>}
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <div className="text-[9px] font-bold text-slate-500 uppercase">報告編號 / 有效期</div>
-                                                    <div className="text-[10px] font-black text-slate-300">{std.report_no || '--'} / {std.calibration_expiry || '--'}</div>
+                                                <div className="col-span-2 mt-2">
+                                                    <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">校正報告 Reports ({std.reports?.length || 0})</div>
+                                                    <div className="space-y-1.5">
+                                                        {std.reports?.map((r, i) => (
+                                                            <div key={i} className="flex justify-between items-center bg-slate-950/40 p-2 rounded-lg border border-slate-800/50">
+                                                                <span className="text-[9px] font-black text-emerald-400">{r.report_no}</span>
+                                                                <span className="text-[9px] font-bold text-slate-500">EXP: {r.expiry_date}</span>
+                                                            </div>
+                                                        ))}
+                                                        {(!std.reports || std.reports.length === 0) && <div className="text-[9px] text-slate-600">無紀錄</div>}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

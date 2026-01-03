@@ -6,8 +6,8 @@ import { analyzeInstrument } from '../services/apiService';
 interface Props {
   mode: 'identity' | 'reading';
   type?: string;
-  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string; categories?: string; calibration_expiry?: string; report_no?: string }) => void;
-  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string; categories?: string; calibration_expiry?: string; report_no?: string; image?: string }) => void;
+  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string; categories?: string[]; reports?: Array<{ report_no: string; expiry_date: string }> }) => void;
+  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string; categories?: string[]; reports?: Array<{ report_no: string; expiry_date: string }>; image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
   totalIndex?: number;
@@ -30,7 +30,8 @@ const InstrumentCapture: React.FC<Props> = ({
 
   // 編輯表單狀態
   const [formData, setFormData] = useState({
-    std_value: '', value: '', unit: '', maker: '', model: '', serial_number: '', categories: '', calibration_expiry: '', report_no: ''
+    std_value: '', value: '', unit: '', maker: '', model: '', serial_number: '',
+    categories: [] as string[], reports: [{ report_no: '', expiry_date: '' }]
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -160,8 +161,7 @@ const InstrumentCapture: React.FC<Props> = ({
           model: formData.model,
           serial: formData.serial_number,
           categories: formData.categories,
-          calibration_expiry: formData.calibration_expiry,
-          report_no: formData.report_no
+          reports: formData.reports.filter(r => r.report_no)
         } : undefined
       );
     } else if (mode === 'identity' && onIdentityConfirm) {
@@ -170,8 +170,7 @@ const InstrumentCapture: React.FC<Props> = ({
         model: formData.model,
         serial_number: formData.serial_number,
         categories: formData.categories,
-        calibration_expiry: formData.calibration_expiry,
-        report_no: formData.report_no,
+        reports: formData.reports.filter(r => r.report_no),
         image: capturedImage || undefined
       });
     }
