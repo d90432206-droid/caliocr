@@ -113,8 +113,8 @@ export const UNIT_OPTIONS: Record<string, string[]> = {
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('QUOTATION_ENTRY');
   const [session, setSession] = useState<SessionData>({
-    quotation_no: localStorage.getItem('quotation_no') || '',
-    customer_name: localStorage.getItem('customer_name') || '',
+    quotation_no: '',
+    customer_name: '',
     temperature: localStorage.getItem('env_temperature') || '',
     humidity: localStorage.getItem('env_humidity') || '',
     items: [] as EquipmentItem[],
@@ -135,11 +135,9 @@ const App: React.FC = () => {
 
   // Persist session to localStorage
   React.useEffect(() => {
-    if (session.quotation_no) localStorage.setItem('quotation_no', session.quotation_no);
-    if (session.customer_name) localStorage.setItem('customer_name', session.customer_name);
     if (session.temperature) localStorage.setItem('env_temperature', session.temperature);
     if (session.humidity) localStorage.setItem('env_humidity', session.humidity);
-  }, [session.quotation_no, session.customer_name, session.temperature, session.humidity]);
+  }, [session.temperature, session.humidity]);
 
   React.useEffect(() => {
     const loadAll = async () => {
