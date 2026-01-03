@@ -176,9 +176,16 @@ const App: React.FC = () => {
           customer_name: template.customer_name,
           temperature: data.temperature,
           humidity: data.humidity,
-          items: template.items.map((it: any) => ({
+          items: (template.items || []).map((it: any) => ({
             ...it,
-            identity: { maker: it.maker, model: it.model, serial_number: it.serial_number }
+            id: it.id || crypto.randomUUID(),
+            equipment_id: it.equipment_id || `EQ-${Date.now()}`,
+            measurementTypes: it.measurementTypes || [],
+            identity: {
+              maker: it.maker || it.identity?.maker || '',
+              model: it.model || it.identity?.model || '',
+              serial_number: it.serial_number || it.identity?.serial_number || ''
+            }
           }))
         }));
       } else {
@@ -723,7 +730,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-lg italic uppercase tracking-tighter italic">校正量別 ({activeItem.measurementTypes.length})</h3>
+              <h3 className="font-black text-lg italic uppercase tracking-tighter italic">校正量別 ({(activeItem.measurementTypes || []).length})</h3>
               <button
                 onClick={() => setStep('TYPE_LIST')}
                 className="px-5 py-2.5 bg-emerald-500 text-black text-xs font-black rounded-2xl shadow-lg active:scale-95 transition-all uppercase tracking-widest"
@@ -733,7 +740,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              {activeItem.measurementTypes.length === 0 ? (
+              {(!activeItem.measurementTypes || activeItem.measurementTypes.length === 0) ? (
                 <div className="h-40 border-2 border-dashed border-slate-900 rounded-[2.5rem] flex flex-col items-center justify-center text-slate-700 p-8 text-center">
                   <div className="text-sm font-black mb-1 opacity-50 uppercase tracking-widest">尚未設定量測類別</div>
                 </div>
@@ -748,7 +755,7 @@ const App: React.FC = () => {
                       <div className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-1">
                         {CATEGORY_LABELS[t.type] || t.type}
                       </div>
-                      <div className="text-xl font-black text-white italic">{t.points.length} POINTS</div>
+                      <div className="text-xl font-black text-white italic">{(t.points || []).length} POINTS</div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-emerald-500">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 5l7 7-7 7" /></svg>
@@ -892,13 +899,13 @@ const App: React.FC = () => {
             )}
 
             <div className="grid grid-cols-2 gap-4">
-              {activeType.points.map(p => (
+              {(activeType.points || []).map(p => (
                 <button
                   key={p.id}
                   onClick={() => { setActivePointId(p.id); setStep('READING_CAPTURE'); }}
-                  className={`relative overflow-hidden group p-5 rounded-[2.5rem] border-2 transition-all active:scale-95 text-left flex flex-col justify-between h-48 ${p.readings.length >= activeType.maxReadings
+                  className={`relative overflow-hidden group p-5 rounded-[2.5rem] border-2 transition-all active:scale-95 text-left flex flex-col justify-between h-48 ${(p.readings || []).length >= (activeType.maxReadings || 1)
                     ? 'bg-emerald-500/10 border-emerald-500/30'
-                    : p.readings.length > 0
+                    : (p.readings || []).length > 0
                       ? 'bg-amber-500/5 border-amber-500/20'
                       : 'bg-slate-900 border-slate-800'
                     }`}
@@ -907,7 +914,7 @@ const App: React.FC = () => {
                     <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
                       {p.frequency || 'Standard Point'}
                     </div>
-                    {p.readings.length >= activeType.maxReadings && (
+                    {(p.readings || []).length >= (activeType.maxReadings || 1) && (
                       <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-black">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
                       </div>
@@ -919,7 +926,7 @@ const App: React.FC = () => {
                       {p.targetValue}
                       <span className="text-[10px] text-slate-500 font-bold ml-1 not-italic">{p.unit}</span>
                     </div>
-                    {p.readings.length > 0 ? (
+                    {(p.readings || []).length > 0 ? (
                       <div className="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
                         <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
                         已記錄 {p.readings[p.readings.length - 1].value}{p.unit}
@@ -930,8 +937,8 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="flex gap-1">
-                    {Array.from({ length: activeType.maxReadings }).map((_, i) => (
-                      <div key={i} className={`h-1.5 rounded-full flex-grow transition-all ${p.readings.length > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
+                    {Array.from({ length: (activeType.maxReadings || 1) }).map((_, i) => (
+                      <div key={i} className={`h-1.5 rounded-full flex-grow transition-all ${(p.readings || []).length > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
                     ))}
                   </div>
                 </button>
@@ -944,13 +951,13 @@ const App: React.FC = () => {
         {
           step === 'READING_CAPTURE' && activeItem && activePoint && activeType && (
             <InstrumentCapture
-              key={`${activePoint.id}-${activePoint.standard ? 'R' : 'S'}-${activePoint.readings.length}`}
+              key={`${activePoint.id}-${activePoint.standard ? 'R' : 'S'}-${(activePoint.readings || []).length}`}
               mode="reading"
               type={activeType.type}
               onReadingConfirm={handleReadingCapture}
               onBack={() => setStep('POINT_LIST')}
-              currentIndex={activePoint.standard ? activePoint.readings.length + 1 : undefined}
-              totalIndex={activeType.maxReadings}
+              currentIndex={activePoint.standard ? (activePoint.readings || []).length + 1 : undefined}
+              totalIndex={activeType.maxReadings || 1}
               onUnlock={() => unlockStandard(activePoint.targetValue)}
               // Auto-match standard if not already captured for this point
               isCapturingStandard={!activePoint.standard && !session.standards.some(s => s.categories?.includes(activeType.type))}
