@@ -6,7 +6,7 @@ import { analyzeInstrument } from '../services/apiService';
 interface Props {
   mode: 'identity' | 'reading';
   type?: string;
-  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string; categories?: string[]; reports?: Array<{ report_no: string; expiry_date: string }> }) => void;
+  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, dutImage: string, stdImage: string, stdInfo?: { maker: string; model: string; serial: string; categories?: string[]; reports?: Array<{ report_no: string; expiry_date: string }> }) => void;
   onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string; categories?: string[]; reports?: Array<{ report_no: string; expiry_date: string }>; image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
@@ -25,7 +25,9 @@ const InstrumentCapture: React.FC<Props> = ({
 }) => {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isCaptured, setIsCaptured] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null); // This acts as the "current" or "DUT" image
+  const [stdCapturedImage, setStdCapturedImage] = useState<string | null>(null); // For Standard instrument display
+  const [captureStage, setCaptureStage] = useState<'STANDARD' | 'DUT'>('DUT'); // Default to DUT, but can switch
   const [isProcessing, setIsProcessing] = useState(false);
 
   // 編輯表單狀態
@@ -52,21 +54,27 @@ const InstrumentCapture: React.FC<Props> = ({
 
   useEffect(() => {
     if (lockedStandard) {
-      setCapturedImage(lockedStandard.image);
-      setIsCaptured(true);
+      setStdCapturedImage(lockedStandard.image);
       setFormData(prev => ({
         ...prev,
-        value: lockedStandard.value,
-        unit: lockedStandard.unit,
+        std_value: lockedStandard.value,
+        unit: lockedStandard.unit || prev.unit,
         maker: lockedStandard.maker || prev.maker,
         model: lockedStandard.model || prev.model,
         serial_number: lockedStandard.serial || prev.serial_number
       }));
-      return;
+      // If we are just capturing identity or a fresh standard, we might still want to skip.
+      // But in reading mode, we ALWAYS want to capture the DUT photo.
+      if (mode === 'identity') {
+        setCapturedImage(lockedStandard.image);
+        setIsCaptured(true);
+        return;
+      }
+      // Continue to start camera for DUT capture
     }
     startCamera();
     return () => stream?.getTracks().forEach(t => t.stop());
-  }, [startCamera, lockedStandard]);
+  }, [startCamera, lockedStandard, mode, stream]);
 
   const handleCapture = async (isManual = false) => {
     if (videoRef.current && canvasRef.current) {
@@ -108,7 +116,11 @@ const InstrumentCapture: React.FC<Props> = ({
           alert("拍照失敗，請重新嘗試");
           return;
         }
-        setCapturedImage(imgData);
+        if (captureStage === 'STANDARD') {
+          setStdCapturedImage(imgData);
+        } else {
+          setCapturedImage(imgData);
+        }
         setIsCaptured(true);
         stream?.getTracks().forEach(t => t.stop());
 
@@ -131,11 +143,12 @@ const InstrumentCapture: React.FC<Props> = ({
           }
           setFormData(prev => ({
             ...prev,
-            value: res.value || '',
-            unit: res.unit || expectedUnit || '', // 若 AI 無回傳單位，使用預期單位
-            maker: res.maker || '',
-            model: res.model || '',
-            serial_number: res.serial_number || ''
+            std_value: captureStage === 'STANDARD' ? (res.value || prev.std_value) : prev.std_value,
+            value: captureStage === 'DUT' ? (res.value || prev.value) : prev.value,
+            unit: res.unit || expectedUnit || prev.unit,
+            maker: res.maker || prev.maker,
+            model: res.model || prev.model,
+            serial_number: res.serial_number || prev.serial_number
           }));
         } catch (e) {
           console.error("辨識異常，請手動輸入");
@@ -148,14 +161,32 @@ const InstrumentCapture: React.FC<Props> = ({
     }
   };
 
+  const handleRetake = () => {
+    setIsCaptured(false);
+    startCamera();
+  };
+
+  const switchToStandard = () => {
+    setCaptureStage('STANDARD');
+    setIsCaptured(false);
+    startCamera();
+  };
+
+  const switchToDUT = () => {
+    setCaptureStage('DUT');
+    setIsCaptured(false);
+    startCamera();
+  };
+
   const handleFinalConfirm = () => {
-    if (mode === 'reading' && onReadingConfirm && capturedImage) {
+    if (mode === 'reading' && onReadingConfirm) {
       onReadingConfirm(
         formData.std_value || formData.value,
         formData.value,
         formData.unit,
         new Date().toISOString(),
-        capturedImage,
+        capturedImage || '',
+        stdCapturedImage || capturedImage || '',
         isCapturingStandard ? {
           maker: formData.maker,
           model: formData.model,
@@ -186,7 +217,7 @@ const InstrumentCapture: React.FC<Props> = ({
 
         <div className="flex flex-col items-end gap-1">
           <div className="px-4 py-1.5 bg-emerald-500 rounded-full text-black text-[10px] font-black tracking-widest uppercase shadow-[0_0_15px_rgba(16,185,129,0.5)]">
-            {mode === 'identity' ? '銘牌辨識' : (isCapturingStandard ? '捕獲標準件 (Master Instrument)' : ` LCD 辨識 (${type})`)}
+            {mode === 'identity' ? '銘牌辨識' : (isCapturingStandard ? '捕獲標準件 (Master Instrument)' : ` LCD 辨識 (${type}) - ${captureStage === 'STANDARD' ? '標準器' : '待校件'}`)}
           </div>
           {currentIndex && totalIndex && !isCapturingStandard && (
             <div className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-white text-[9px] font-bold border border-white/20">
@@ -243,10 +274,36 @@ const InstrumentCapture: React.FC<Props> = ({
       ) : (
         <div className="flex-grow flex flex-col bg-slate-900 animate-in slide-in-from-bottom-5 overflow-y-auto pb-20">
           {/* 截圖預覽 */}
-          <div className="h-1/3 relative bg-black flex-none">
-            <img src={capturedImage!} className="w-full h-full object-contain" />
+          <div className="h-1/3 relative bg-black flex-none flex overflow-hidden">
+            <div className={`relative flex-grow h-full transition-all duration-300 ${captureStage === 'DUT' ? 'w-full' : 'w-1/2 opacity-50'}`}>
+              <img src={capturedImage!} className="w-full h-full object-contain" />
+              <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 rounded text-[8px] font-black text-black">DUT PHOTO</div>
+              <button
+                onClick={switchToDUT}
+                className="absolute inset-0 bg-transparent"
+              />
+            </div>
+            {stdCapturedImage && (
+              <div className={`relative flex-grow h-full border-l border-white/20 transition-all duration-300 ${captureStage === 'STANDARD' ? 'w-full' : 'w-1/2 opacity-50'}`}>
+                <img src={stdCapturedImage} className="w-full h-full object-contain" />
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-blue-500 rounded text-[8px] font-black text-white">STD PHOTO</div>
+                <button
+                  onClick={switchToStandard}
+                  className="absolute inset-0 bg-transparent"
+                />
+              </div>
+            )}
+            {!stdCapturedImage && mode === 'reading' && (
+              <button
+                onClick={switchToStandard}
+                className="flex-none w-1/4 bg-slate-800 flex flex-col items-center justify-center gap-1 border-l border-slate-700"
+              >
+                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="text-[8px] font-black text-blue-500 uppercase">ADD STD photo</span>
+              </button>
+            )}
             {isProcessing && (
-              <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-sm flex flex-col items-center justify-center">
+              <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-sm flex flex-col items-center justify-center z-50">
                 <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
                 <div className="mt-4 text-emerald-500 font-black text-xs tracking-widest animate-pulse">PYTHON + AI 處理中...</div>
               </div>

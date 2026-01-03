@@ -49,6 +49,7 @@ interface SessionData {
 interface ReadingData {
   id: string;
   image: string;
+  stdImage?: string;
   value: string;
   unit: string;
   timestamp: string;
@@ -305,8 +306,8 @@ const App: React.FC = () => {
   };
 
   // Handle Reading Capture (Standard or DUT)
-  // Updated signature to accept standard info
-  const handleReadingCapture = (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string, model: string, serial: string }) => {
+  // Updated signature to accept separate images
+  const handleReadingCapture = (stdValue: string, dutValue: string, unit: string, timestamp: string, dutImage: string, stdImage: string, stdInfo?: { maker: string, model: string, serial: string }) => {
     if (!activeItem || !activeType || !activePoint) return;
 
     let shouldGoBack = false;
@@ -328,7 +329,7 @@ const App: React.FC = () => {
                   value: dutValue,
                   unit,
                   timestamp,
-                  image
+                  image: dutImage
                 };
 
                 // Auto-match standard if not present
@@ -341,7 +342,7 @@ const App: React.FC = () => {
                       value: stdValue,
                       unit,
                       timestamp,
-                      image,
+                      image: stdImage,
                       seq: 0,
                       maker: stdInfo?.maker || matched?.maker || '',
                       model: stdInfo?.model || matched?.model || '',
@@ -362,6 +363,7 @@ const App: React.FC = () => {
                     ...p.readings,
                     {
                       ...commonData,
+                      stdImage: stdImage,
                       seq: newLength,
                       maker: stdInfo?.maker || p.standard?.maker || standardData?.maker,
                       model: stdInfo?.model || p.standard?.model || standardData?.model,
@@ -417,27 +419,29 @@ const App: React.FC = () => {
 
         for (const mType of item.measurementTypes) {
           for (const point of mType.points) {
-            // Save standard if exists
-            if (point.standard) {
-              await saveCalibrationRecord({
-                quotation_no: session.quotation_no,
-                equipment_id: item.equipment_id,
-                customer_name: session.customer_name,
-                ...item.identity,
-                reading_type: `${mType.type}_STANDARD`,
-                standard_value: point.targetValue,
-                std_maker: point.standard.maker,
-                std_model: point.standard.model,
-                std_serial: point.standard.serial,
-                std_unit: point.standard.unit,
-                value: point.standard.value,
-                unit: point.standard.unit,
-                image_base64: point.standard.image,
-                created_at: point.standard.timestamp
-              });
-            }
-            // Save readings
+            // Updated: Save standard + DUT as a pair for EACH reading if applicable
             for (const r of point.readings) {
+              // 1. Save standard record for this reading
+              if (r.stdImage || point.standard) {
+                await saveCalibrationRecord({
+                  quotation_no: session.quotation_no,
+                  equipment_id: item.equipment_id,
+                  customer_name: session.customer_name,
+                  ...item.identity,
+                  reading_type: `${mType.type}_STANDARD`,
+                  standard_value: point.targetValue,
+                  std_maker: r.maker || point.standard?.maker,
+                  std_model: r.model || point.standard?.model,
+                  std_serial: r.serial || point.standard?.serial,
+                  std_unit: r.unit || point.standard?.unit,
+                  value: point.targetValue, // Usually the setpoint
+                  unit: r.unit || point.standard?.unit,
+                  image_base64: r.stdImage || point.standard?.image,
+                  created_at: r.timestamp
+                });
+              }
+
+              // 2. Save DUT record
               await saveCalibrationRecord({
                 quotation_no: session.quotation_no,
                 equipment_id: item.equipment_id,
@@ -445,10 +449,10 @@ const App: React.FC = () => {
                 ...item.identity,
                 reading_type: mType.type,
                 standard_value: point.targetValue,
-                std_maker: point.standard?.maker,
-                std_model: point.standard?.model,
-                std_serial: point.standard?.serial,
-                std_unit: point.standard?.unit,
+                std_maker: r.maker || point.standard?.maker,
+                std_model: r.model || point.standard?.model,
+                std_serial: r.serial || point.standard?.serial,
+                std_unit: r.unit || point.standard?.unit || r.unit,
                 value: r.value,
                 unit: r.unit,
                 frequency: point.frequency,
