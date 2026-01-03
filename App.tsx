@@ -194,7 +194,7 @@ const App: React.FC = () => {
     setStep('QUOTATION_ENTRY');
   };
 
-  const addStandard = (std: { maker: string; model: string; serial_number: string, image?: string }) => {
+  const addStandard = (std: { maker: string; model: string; serial_number: string; categories?: string; calibration_expiry?: string; report_no?: string; image?: string }) => {
     setSession(prev => ({
       ...prev,
       standards: [
@@ -204,6 +204,9 @@ const App: React.FC = () => {
           maker: std.maker,
           model: std.model,
           serial: std.serial_number,
+          categories: std.categories,
+          calibration_expiry: std.calibration_expiry,
+          report_no: std.report_no,
           image: std.image
         }
       ]
@@ -486,8 +489,12 @@ const App: React.FC = () => {
                     <div className="flex items-center gap-4">
                       {std.image && <img src={std.image} className="w-12 h-12 rounded-xl object-cover bg-black" />}
                       <div>
-                        <div className="text-white font-black italic">{std.maker}</div>
-                        <div className="text-[10px] text-slate-500 font-bold uppercase">{std.model} | {std.serial}</div>
+                        <div className="text-white font-black italic">{std.maker} {std.model}</div>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase">{std.serial}</div>
+                        <div className="flex gap-2 mt-1">
+                          {std.categories && <div className="text-[8px] bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded border border-slate-700">{std.categories}</div>}
+                          {std.report_no && <div className="text-[8px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">Report: {std.report_no}</div>}
+                        </div>
                       </div>
                     </div>
                     <button

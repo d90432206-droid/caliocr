@@ -6,8 +6,8 @@ import { analyzeInstrument } from '../services/apiService';
 interface Props {
   mode: 'identity' | 'reading';
   type?: string;
-  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string }) => void;
-  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string, image?: string }) => void;
+  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string; categories?: string; calibration_expiry?: string; report_no?: string }) => void;
+  onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string; categories?: string; calibration_expiry?: string; report_no?: string; image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
   totalIndex?: number;
@@ -30,7 +30,7 @@ const InstrumentCapture: React.FC<Props> = ({
 
   // 編輯表單狀態
   const [formData, setFormData] = useState({
-    std_value: '', value: '', unit: '', maker: '', model: '', serial_number: ''
+    std_value: '', value: '', unit: '', maker: '', model: '', serial_number: '', categories: '', calibration_expiry: '', report_no: ''
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -128,13 +128,14 @@ const InstrumentCapture: React.FC<Props> = ({
             startCamera();
             return;
           }
-          setFormData({
+          setFormData(prev => ({
+            ...prev,
             value: res.value || '',
             unit: res.unit || expectedUnit || '', // 若 AI 無回傳單位，使用預期單位
             maker: res.maker || '',
             model: res.model || '',
             serial_number: res.serial_number || ''
-          });
+          }));
         } catch (e) {
           console.error("辨識異常，請手動輸入");
           // 錯誤時也嘗試帶入單位
@@ -149,18 +150,28 @@ const InstrumentCapture: React.FC<Props> = ({
   const handleFinalConfirm = () => {
     if (mode === 'reading' && onReadingConfirm && capturedImage) {
       onReadingConfirm(
-        formData.std_value || formData.value, // Use std_value if available, else fallback
+        formData.std_value || formData.value,
         formData.value,
         formData.unit,
         new Date().toISOString(),
         capturedImage,
-        isCapturingStandard ? { maker: formData.maker, model: formData.model, serial: formData.serial_number } : undefined
+        isCapturingStandard ? {
+          maker: formData.maker,
+          model: formData.model,
+          serial: formData.serial_number,
+          categories: formData.categories,
+          calibration_expiry: formData.calibration_expiry,
+          report_no: formData.report_no
+        } : undefined
       );
     } else if (mode === 'identity' && onIdentityConfirm) {
       onIdentityConfirm({
         maker: formData.maker,
         model: formData.model,
         serial_number: formData.serial_number,
+        categories: formData.categories,
+        calibration_expiry: formData.calibration_expiry,
+        report_no: formData.report_no,
         image: capturedImage || undefined
       });
     }
@@ -231,9 +242,9 @@ const InstrumentCapture: React.FC<Props> = ({
           `}} />
         </div >
       ) : (
-        <div className="flex-grow flex flex-col bg-slate-900 animate-in slide-in-from-bottom-5">
+        <div className="flex-grow flex flex-col bg-slate-900 animate-in slide-in-from-bottom-5 overflow-y-auto pb-20">
           {/* 截圖預覽 */}
-          <div className="h-1/3 relative bg-black">
+          <div className="h-1/3 relative bg-black flex-none">
             <img src={capturedImage!} className="w-full h-full object-contain" />
             {isProcessing && (
               <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-sm flex flex-col items-center justify-center">
@@ -244,7 +255,7 @@ const InstrumentCapture: React.FC<Props> = ({
           </div>
 
           {/* 編輯區 */}
-          <div className="flex-grow p-6 overflow-y-auto">
+          <div className="p-6">
             <div className="flex items-center gap-2 mb-6">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></div>
               <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
@@ -278,8 +289,8 @@ const InstrumentCapture: React.FC<Props> = ({
                     </div>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-slate-500 font-bold">單位</label>
+                <div className="space-y-2 col-span-2">
+                  <label className="text-[10px] text-slate-500 font-bold">單位 Unit</label>
                   {unitOptions && unitOptions.length > 0 ? (
                     <div className="relative">
                       <select
@@ -308,7 +319,7 @@ const InstrumentCapture: React.FC<Props> = ({
 
                 {/* Show Active Standard for DUT Readings */}
                 {!isCapturingStandard && activeStandardInfo && (
-                  <div className="mt-6 pt-4 border-t border-slate-800 animate-in slide-in-from-bottom-2">
+                  <div className="mt-6 pt-4 border-t border-slate-800 animate-in slide-in-from-bottom-2 col-span-2">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-1 h-3 bg-blue-500 rounded-full"></div>
                       <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">目前關聯標準件 CURRENT STANDARD</span>
@@ -322,7 +333,7 @@ const InstrumentCapture: React.FC<Props> = ({
 
                 {/* Standard Info Selection/Inputs */}
                 {isCapturingStandard && (
-                  <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 animate-in slide-in-from-bottom-2">
+                  <div className="mt-6 pt-6 border-t border-slate-800 space-y-4 animate-in slide-in-from-bottom-2 col-span-2">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-1 h-4 bg-emerald-500 rounded-full"></div>
@@ -357,10 +368,22 @@ const InstrumentCapture: React.FC<Props> = ({
                         <label className="text-[10px] text-slate-500 font-bold">型號 Model</label>
                         <input type="text" value={formData.model} onChange={e => setFormData({ ...formData, model: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" placeholder="e.g. 5522A" />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] text-slate-500 font-bold">序號 Serial No.</label>
-                      <input type="text" value={formData.serial_number} onChange={e => setFormData({ ...formData, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none tracking-widest focus:border-emerald-500" />
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-[10px] text-slate-500 font-bold">序號 Serial No.</label>
+                        <input type="text" value={formData.serial_number} onChange={e => setFormData({ ...formData, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none tracking-widest focus:border-emerald-500" />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <label className="text-[10px] text-slate-500 font-bold">量別 Categories</label>
+                        <input type="text" value={formData.categories} onChange={e => setFormData({ ...formData, categories: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" placeholder="e.g. DCV, DCA" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-500 font-bold">報告編號 Report No.</label>
+                        <input type="text" value={formData.report_no} onChange={e => setFormData({ ...formData, report_no: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-500 font-bold">有效期 Expiry</label>
+                        <input type="date" value={formData.calibration_expiry} onChange={e => setFormData({ ...formData, calibration_expiry: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -380,6 +403,21 @@ const InstrumentCapture: React.FC<Props> = ({
                 <div className="space-y-2">
                   <label className="text-[10px] text-slate-500 font-bold">序號 Serial No.</label>
                   <input type="text" value={formData.serial_number} onChange={e => setFormData({ ...formData, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none tracking-widest" />
+                </div>
+                {/* Identity mode extra fields */}
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-500 font-bold">量別 Categories</label>
+                  <input type="text" value={formData.categories} onChange={e => setFormData({ ...formData, categories: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" placeholder="e.g. DCA, DCV" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-500 font-bold">報告編號 Report No.</label>
+                    <input type="text" value={formData.report_no} onChange={e => setFormData({ ...formData, report_no: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-500 font-bold">有效期 Expiry</label>
+                    <input type="date" value={formData.calibration_expiry} onChange={e => setFormData({ ...formData, calibration_expiry: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" />
+                  </div>
                 </div>
               </div>
             )}

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { getQuotationTemplate } from '../services/supabaseService';
 
 interface Props {
   onSubmit: (data: { customer_name: string; quotation_no: string; temperature: string; humidity: string }) => void;
@@ -14,6 +15,8 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
     temperature: initialData.temperature || '',
     humidity: initialData.humidity || ''
   });
+
+  const [isSyncing, setIsSyncing] = useState(false);
 
   React.useEffect(() => {
     setData({
@@ -62,14 +65,28 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
               />
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!data.quotation_no) return alert("請先輸入編號");
-                  alert(`已連線系統...\n找到報價單 ${data.quotation_no}\n客戶：儀器實驗室\n包含 6 件待校儀器`);
-                  setData({ ...data, customer_name: '儀器實驗室 (模擬數據)' });
+                  setIsSyncing(true);
+                  try {
+                    const template = await getQuotationTemplate(data.quotation_no);
+                    if (template) {
+                      setData({ ...data, customer_name: template.customer_name });
+                      alert(`已同步：找到屬於 ${template.customer_name} 的報價單，包含 ${template.items?.length || 0} 件設備。`);
+                    } else {
+                      alert("找不到該單號的預設模板，請手動輸入資訊。");
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    alert("同步搜尋發生錯誤");
+                  } finally {
+                    setIsSyncing(false);
+                  }
                 }}
-                className="flex-none bg-slate-800 hover:bg-slate-700 text-emerald-500 text-[10px] font-black px-6 rounded-[2rem] border border-emerald-500/20 shadow-lg"
+                disabled={isSyncing}
+                className="flex-none bg-slate-800 hover:bg-slate-700 text-emerald-500 text-[10px] font-black px-6 rounded-[2rem] border border-emerald-500/20 shadow-lg disabled:opacity-50 transition-all"
               >
-                SYNC
+                {isSyncing ? '...' : 'SYNC'}
               </button>
             </div>
           </div>

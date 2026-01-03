@@ -37,18 +37,21 @@ export interface CalibrationRecord {
   created_at: string;
 }
 
+export interface QuotationTemplate {
+  quotation_no: string;
+  customer_name: string;
+  items: any[]; // High-level structure for pre-setup items
+}
+
 export interface StandardInstrument {
   id: string;
   maker: string;
   model: string;
   serial_number: string;
+  categories: string; // e.g. "DCV, DCA, Temperature"
+  calibration_expiry?: string;
+  report_no?: string;
   image_url?: string;
-}
-
-export interface QuotationTemplate {
-  quotation_no: string;
-  customer_name: string;
-  items: any[]; // High-level structure for pre-setup items
 }
 
 export const saveCalibrationRecord = async (record: CalibrationRecord) => {
@@ -189,4 +192,22 @@ export const getQuotationTemplate = async (quotationNo: string): Promise<Quotati
     return local ? JSON.parse(local) : null;
   }
   return data as QuotationTemplate;
+};
+
+export const listQuotationTemplates = async (): Promise<QuotationTemplate[]> => {
+  if (!supabase) {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
+    return keys.map(k => JSON.parse(localStorage.getItem(k)!));
+  }
+  const { data, error } = await supabase
+    .from('quotation_templates')
+    .select('*')
+    .order('quotation_no', { ascending: false });
+
+  if (error) {
+    console.warn("Supabase fetch failed, falling back to localStorage", error);
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('template_'));
+    return keys.map(k => JSON.parse(localStorage.getItem(k)!));
+  }
+  return data as QuotationTemplate[];
 };
