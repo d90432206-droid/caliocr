@@ -161,7 +161,7 @@ const InstrumentCapture: React.FC<Props> = ({
           model: formData.model,
           serial: formData.serial_number,
           categories: formData.categories,
-          reports: formData.reports.filter(r => r.report_no)
+          reports: formData.reports.filter(r => r.report_no || r.expiry_date)
         } : undefined
       );
     } else if (mode === 'identity' && onIdentityConfirm) {
@@ -170,7 +170,7 @@ const InstrumentCapture: React.FC<Props> = ({
         model: formData.model,
         serial_number: formData.serial_number,
         categories: formData.categories,
-        reports: formData.reports.filter(r => r.report_no),
+        reports: formData.reports.filter(r => r.report_no || r.expiry_date),
         image: capturedImage || undefined
       });
     }
@@ -371,17 +371,55 @@ const InstrumentCapture: React.FC<Props> = ({
                         <label className="text-[10px] text-slate-500 font-bold">序號 Serial No.</label>
                         <input type="text" value={formData.serial_number} onChange={e => setFormData({ ...formData, serial_number: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none tracking-widest focus:border-emerald-500" />
                       </div>
-                      <div className="space-y-2 col-span-2">
-                        <label className="text-[10px] text-slate-500 font-bold">量別 Categories</label>
-                        <input type="text" value={formData.categories} onChange={e => setFormData({ ...formData, categories: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" placeholder="e.g. DCV, DCA" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-500 font-bold">報告編號 Report No.</label>
-                        <input type="text" value={formData.report_no} onChange={e => setFormData({ ...formData, report_no: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-500 font-bold">有效期 Expiry</label>
-                        <input type="date" value={formData.calibration_expiry} onChange={e => setFormData({ ...formData, calibration_expiry: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold text-slate-300 outline-none focus:border-emerald-500" />
+                      <div className="space-y-4 col-span-2">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest pl-1">校正報告及其有效期 Calibration Reports</label>
+                        {formData.reports.map((report, rIdx) => (
+                          <div key={rIdx} className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end bg-slate-950/50 p-4 rounded-2xl border border-slate-800/50 animate-in slide-in-from-top-2">
+                            <div className="md:col-span-3 space-y-1">
+                              <label className="text-[9px] font-bold text-slate-600 uppercase">報告編號 Report No.</label>
+                              <input
+                                value={report.report_no}
+                                onChange={e => {
+                                  const rs = [...formData.reports];
+                                  rs[rIdx].report_no = e.target.value;
+                                  setFormData({ ...formData, reports: rs });
+                                }}
+                                className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-emerald-500 text-xs font-black text-white"
+                                placeholder="R2024-001"
+                              />
+                            </div>
+                            <div className="md:col-span-3 space-y-1">
+                              <label className="text-[9px] font-bold text-slate-600 uppercase">有效日期 Expiry Date</label>
+                              <input
+                                type="date"
+                                value={report.expiry_date}
+                                onChange={e => {
+                                  const rs = [...formData.reports];
+                                  rs[rIdx].expiry_date = e.target.value;
+                                  setFormData({ ...formData, reports: rs });
+                                }}
+                                className="w-full bg-slate-950 border border-slate-800 p-2.5 rounded-xl outline-none focus:border-emerald-500 text-xs font-black text-white"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (formData.reports.length === 1) return;
+                                setFormData({ ...formData, reports: formData.reports.filter((_, i) => i !== rIdx) });
+                              }}
+                              className="p-2 text-rose-500 hover:bg-rose-500/10 rounded-xl disabled:opacity-30 transition-all flex justify-center"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, reports: [...formData.reports, { report_no: '', expiry_date: '' }] })}
+                          className="w-full py-3 border border-dashed border-emerald-500/30 text-emerald-500 text-[10px] font-black rounded-xl hover:bg-emerald-500/5 transition-all uppercase"
+                        >
+                          + 新增一份報告
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -405,18 +443,48 @@ const InstrumentCapture: React.FC<Props> = ({
                 </div>
                 {/* Identity mode extra fields */}
                 <div className="space-y-2">
-                  <label className="text-[10px] text-slate-500 font-bold">量別 Categories</label>
-                  <input type="text" value={formData.categories} onChange={e => setFormData({ ...formData, categories: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" placeholder="e.g. DCA, DCV" />
+                  <label className="text-[10px] text-slate-500 font-bold">量別 Categories (逗號分隔)</label>
+                  <input
+                    type="text"
+                    value={formData.categories.join(', ')}
+                    onChange={e => setFormData({ ...formData, categories: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+                    className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none text-slate-300"
+                    placeholder="e.g. DCA, DCV"
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-500 font-bold">報告編號 Report No.</label>
-                    <input type="text" value={formData.report_no} onChange={e => setFormData({ ...formData, report_no: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-slate-500 font-bold">有效期 Expiry</label>
-                    <input type="date" value={formData.calibration_expiry} onChange={e => setFormData({ ...formData, calibration_expiry: e.target.value })} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl font-bold outline-none" />
-                  </div>
+                <div className="space-y-4 pt-4 border-t border-slate-800/50">
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest pl-1">校正報告 Calibration Reports</label>
+                  {formData.reports.map((report, rIdx) => (
+                    <div key={rIdx} className="grid grid-cols-2 gap-3 items-center">
+                      <input
+                        value={report.report_no}
+                        onChange={e => {
+                          const rs = [...formData.reports];
+                          rs[rIdx].report_no = e.target.value;
+                          setFormData({ ...formData, reports: rs });
+                        }}
+                        className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-xs font-black text-white"
+                        placeholder="Report No."
+                      />
+                      <input
+                        type="date"
+                        value={report.expiry_date}
+                        onChange={e => {
+                          const rs = [...formData.reports];
+                          rs[rIdx].expiry_date = e.target.value;
+                          setFormData({ ...formData, reports: rs });
+                        }}
+                        className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-xs font-black text-white"
+                      />
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, reports: [...formData.reports, { report_no: '', expiry_date: '' }] })}
+                    className="w-full py-2.5 border border-dashed border-slate-700 text-slate-500 text-[10px] font-bold rounded-xl hover:text-emerald-500 transition-all"
+                  >
+                    + 新增報告
+                  </button>
                 </div>
               </div>
             )}

@@ -6,7 +6,7 @@ import InstrumentCapture from './components/InstrumentCapture';
 import CalibrationHistory from './components/CalibrationHistory';
 import EquipmentList from './components/EquipmentList';
 import PreSetup from './components/PreSetup';
-import { saveCalibrationRecord, CalibrationRecord, getQuotationTemplate } from './services/supabaseService';
+import { saveCalibrationRecord, CalibrationRecord, getQuotationTemplate, getStandardInstruments } from './services/supabaseService';
 
 
 type AppStep =
@@ -31,6 +31,8 @@ interface StandardInstrument {
   maker: string;
   model: string;
   serial: string;
+  categories?: string[];
+  reports?: Array<{ report_no: string; expiry_date: string }>;
   image?: string;
 }
 
@@ -120,6 +122,8 @@ const App: React.FC = () => {
     standardCache: {} as Record<string, { value: string, unit: string, image: string, maker?: string, model?: string, serial?: string }>
   });
 
+  const [availableStandards, setAvailableStandards] = useState<any[]>([]);
+
   // Persist session to localStorage
   React.useEffect(() => {
     if (session.quotation_no) localStorage.setItem('quotation_no', session.quotation_no);
@@ -127,6 +131,14 @@ const App: React.FC = () => {
     if (session.temperature) localStorage.setItem('env_temperature', session.temperature);
     if (session.humidity) localStorage.setItem('env_humidity', session.humidity);
   }, [session.quotation_no, session.customer_name, session.temperature, session.humidity]);
+
+  React.useEffect(() => {
+    const loadAll = async () => {
+      const stds = await getStandardInstruments();
+      setAvailableStandards(stds || []);
+    };
+    loadAll();
+  }, []);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
@@ -295,16 +307,24 @@ const App: React.FC = () => {
                   image
                 };
 
-                // In the new dual flow, we save both at once
-                const standardData = {
-                  id: crypto.randomUUID(),
-                  value: stdValue,
-                  unit,
-                  timestamp,
-                  image,
-                  seq: 0,
-                  ...stdInfo
-                };
+                // Auto-match standard if not present
+                let standardData = p.standard;
+                if (!standardData) {
+                  const matched = prev.standards.find(s => s.categories?.includes(t.type));
+                  if (matched || stdInfo) {
+                    standardData = {
+                      id: crypto.randomUUID(),
+                      value: stdValue,
+                      unit,
+                      timestamp,
+                      image,
+                      seq: 0,
+                      maker: stdInfo?.maker || matched?.maker || '',
+                      model: stdInfo?.model || matched?.model || '',
+                      serial: stdInfo?.serial || matched?.serial || ''
+                    };
+                  }
+                }
 
                 const newLength = p.readings.length + 1;
                 if (newLength >= t.maxReadings) {
@@ -319,9 +339,9 @@ const App: React.FC = () => {
                     {
                       ...commonData,
                       seq: newLength,
-                      maker: stdInfo?.maker || p.standard?.maker,
-                      model: stdInfo?.model || p.standard?.model,
-                      serial: stdInfo?.serial || p.standard?.serial
+                      maker: stdInfo?.maker || p.standard?.maker || standardData?.maker,
+                      model: stdInfo?.model || p.standard?.model || standardData?.model,
+                      serial: stdInfo?.serial || p.standard?.serial || standardData?.serial
                     }
                   ]
                 };
@@ -515,11 +535,44 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-4 mt-auto">
+              {availableStandards.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">快速從資料庫挑選標配 (QUICK SELECT)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableStandards.map(std => {
+                      const isSelected = session.standards.some(s => s.serial === std.serial_number);
+                      return (
+                        <button
+                          key={std.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSession(prev => ({ ...prev, standards: prev.standards.filter(s => s.serial !== std.serial_number) }));
+                            } else {
+                              addStandard({
+                                maker: std.maker,
+                                model: std.model,
+                                serial_number: std.serial_number,
+                                categories: std.categories,
+                                reports: std.reports,
+                                image: std.image_url
+                              });
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isSelected ? 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700'}`}
+                        >
+                          {std.maker} {std.model} ({std.serial_number})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => setStep('STANDARD_CAPTURE')}
                 className="w-full py-6 bg-slate-900 border border-slate-800 text-white font-black rounded-[2rem] active:scale-[0.98] transition-all text-xs uppercase tracking-widest"
               >
-                + 新增標準件 (ADD)
+                + 現場拍攝新增標準件 (PHOTO ADD)
               </button>
               <button
                 onClick={() => setStep('EQUIPMENT_LIST')}
@@ -886,19 +939,37 @@ const App: React.FC = () => {
               onBack={() => setStep('POINT_LIST')}
               currentIndex={activePoint.standard ? activePoint.readings.length + 1 : undefined}
               totalIndex={activeType.maxReadings}
-              lockedStandard={!activePoint.standard ? session.standardCache[`${activeType.type}_${activePoint.targetValue}`] : undefined}
               onUnlock={() => unlockStandard(activePoint.targetValue)}
-              // New prop to clarify mode
-              isCapturingStandard={!activePoint.standard}
-              // For standard capture of Temperature, do not enforce point unit (allow Ohm vs C mismatch) e.g. Standard might be Resistance
-              expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
-              unitOptions={UNIT_OPTIONS[activeType.type]}
-              availableStandards={session.standards}
+              // Auto-match standard if not already captured for this point
+              isCapturingStandard={!activePoint.standard && !session.standards.some(s => s.categories?.includes(activeType.type))}
+              // Pass the auto-matched or existing standard info
               activeStandardInfo={activePoint.standard ? {
                 maker: activePoint.standard.maker || '',
                 model: activePoint.standard.model || '',
                 serial: activePoint.standard.serial || ''
-              } : undefined}
+              } : (() => {
+                const matched = session.standards.find(s => s.categories?.includes(activeType.type));
+                return matched ? { maker: matched.maker, model: matched.model, serial: matched.serial } : undefined;
+              })()}
+              // For standard auto-fill: pass the target value as default std_value
+              expectedUnit={(!activePoint.standard && activeType.type === 'temperature') ? undefined : activePoint.unit}
+              unitOptions={UNIT_OPTIONS[activeType.type]}
+              availableStandards={session.standards}
+              // If we have an auto-matched standard but no point.standard yet, we can pre-fill
+              lockedStandard={!activePoint.standard ? (() => {
+                const matched = session.standards.find(s => s.categories?.includes(activeType.type));
+                if (matched) {
+                  return {
+                    value: activePoint.targetValue,
+                    unit: activePoint.unit,
+                    image: matched.image || '',
+                    maker: matched.maker,
+                    model: matched.model,
+                    serial: matched.serial
+                  };
+                }
+                return session.standardCache[`${activeType.type}_${activePoint.targetValue}`];
+              })() : undefined}
             />
           )
         }

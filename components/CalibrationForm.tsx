@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { getQuotationTemplate } from '../services/supabaseService';
+import { getQuotationTemplate, listQuotationTemplates, QuotationTemplate } from '../services/supabaseService';
 
 interface Props {
   onSubmit: (data: { customer_name: string; quotation_no: string; temperature: string; humidity: string }) => void;
@@ -17,6 +17,17 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showTemplateList, setShowTemplateList] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<QuotationTemplate[]>([]);
+
+  const loadTemplates = async () => {
+    try {
+      const res = await listQuotationTemplates();
+      setAllTemplates(res);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   React.useEffect(() => {
     setData({
@@ -65,14 +76,28 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
               />
               <button
                 type="button"
+                onClick={() => {
+                  loadTemplates();
+                  setShowTemplateList(true);
+                }}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-400 p-3 rounded-[2rem] border border-slate-700"
+                title="Browse Templates"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+              </button>
+              <button
+                type="button"
                 onClick={async () => {
                   if (!data.quotation_no) return alert("請先輸入編號");
                   setIsSyncing(true);
                   try {
-                    const template = await getQuotationTemplate(data.quotation_no);
+                    const template = await getQuotationTemplate(data.quotation_no.trim());
                     if (template) {
-                      setData({ ...data, customer_name: template.customer_name });
-                      alert(`已同步：找到屬於 ${template.customer_name} 的報價單，包含 ${template.items?.length || 0} 件設備。`);
+                      setData({ ...data, quotation_no: template.quotation_no, customer_name: template.customer_name });
+                      // If the user is specifically syncing, we can offer to proceed immediately
+                      if (window.confirm(`已同步：找到屬於 ${template.customer_name} 的報價單。\n是否立即載入並進入下一步？`)) {
+                        onSubmit({ ...data, quotation_no: template.quotation_no, customer_name: template.customer_name });
+                      }
                     } else {
                       alert("找不到該單號的預設模板，請手動輸入資訊。");
                     }
@@ -136,6 +161,37 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
           </div>
         </form>
       </div>
+
+      {/* Template Selection Modal */}
+      {showTemplateList && (
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md p-6 flex flex-col pt-[safe-area-inset-top] animate-in fade-in duration-200">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-black text-white italic uppercase">選擇現有報價單 BROWSE TEMPLATES</h3>
+            <button onClick={() => setShowTemplateList(false)} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white">✕</button>
+          </div>
+
+          <div className="flex-grow overflow-y-auto space-y-4 pr-1">
+            {allTemplates.length === 0 ? (
+              <div className="text-center py-20 text-slate-500 italic">尚未建立任何模板</div>
+            ) : (
+              allTemplates.map(t => (
+                <button
+                  key={t.quotation_no}
+                  onClick={() => {
+                    setData({ ...data, quotation_no: t.quotation_no, customer_name: t.customer_name });
+                    setShowTemplateList(false);
+                  }}
+                  className="w-full bg-slate-900 border border-slate-800 p-5 rounded-[1.5rem] flex flex-col text-left hover:border-emerald-500/50 transition-all active:scale-[0.98]"
+                >
+                  <div className="text-emerald-500 font-black text-xs tracking-widest mb-1">{t.quotation_no}</div>
+                  <div className="text-white font-black text-lg">{t.customer_name}</div>
+                  {t.items && <div className="text-[9px] text-slate-600 font-bold uppercase mt-2">包含 {t.items.length} 件預配設備</div>}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
