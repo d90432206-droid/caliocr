@@ -273,20 +273,12 @@ const InstrumentCapture: React.FC<Props> = ({
         </div >
       ) : (
         <div className="flex-grow flex flex-col bg-slate-900 animate-in slide-in-from-bottom-5 overflow-y-auto pb-20">
-          {/* 截圖預覽 */}
+          {/* 截圖預覽 (Left: Standard, Right: DUT) */}
           <div className="h-1/3 relative bg-black flex-none flex overflow-hidden">
-            <div className={`relative flex-grow h-full transition-all duration-300 ${captureStage === 'DUT' ? 'w-full' : 'w-1/2 opacity-50'}`}>
-              <img src={capturedImage!} className="w-full h-full object-contain" />
-              <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 rounded text-[8px] font-black text-black">DUT PHOTO</div>
-              <button
-                onClick={switchToDUT}
-                className="absolute inset-0 bg-transparent"
-              />
-            </div>
             {stdCapturedImage && (
-              <div className={`relative flex-grow h-full border-l border-white/20 transition-all duration-300 ${captureStage === 'STANDARD' ? 'w-full' : 'w-1/2 opacity-50'}`}>
+              <div className={`relative flex-grow h-full transition-all duration-300 ${captureStage === 'STANDARD' ? 'w-full' : 'w-1/2 opacity-50'}`}>
                 <img src={stdCapturedImage} className="w-full h-full object-contain" />
-                <div className="absolute top-2 left-2 px-2 py-0.5 bg-blue-500 rounded text-[8px] font-black text-white">STD PHOTO</div>
+                <div className="absolute top-2 left-2 px-2 py-0.5 bg-blue-500 rounded text-[8px] font-black text-white">STD PHOTO (標準)</div>
                 <button
                   onClick={switchToStandard}
                   className="absolute inset-0 bg-transparent"
@@ -296,12 +288,20 @@ const InstrumentCapture: React.FC<Props> = ({
             {!stdCapturedImage && mode === 'reading' && (
               <button
                 onClick={switchToStandard}
-                className="flex-none w-1/4 bg-slate-800 flex flex-col items-center justify-center gap-1 border-l border-slate-700"
+                className="flex-none w-1/4 bg-slate-800 flex flex-col items-center justify-center gap-1 border-r border-slate-700"
               >
                 <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 <span className="text-[8px] font-black text-blue-500 uppercase">ADD STD photo</span>
               </button>
             )}
+            <div className={`relative flex-grow h-full border-l border-white/20 transition-all duration-300 ${captureStage === 'DUT' ? 'w-full' : 'w-1/2 opacity-50'}`}>
+              <img src={capturedImage!} className="w-full h-full object-contain" />
+              <div className="absolute top-2 left-2 px-2 py-0.5 bg-emerald-500 rounded text-[8px] font-black text-black">DUT PHOTO (待校)</div>
+              <button
+                onClick={switchToDUT}
+                className="absolute inset-0 bg-transparent"
+              />
+            </div>
             {isProcessing && (
               <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-sm flex flex-col items-center justify-center z-50">
                 <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
@@ -553,7 +553,7 @@ const InstrumentCapture: React.FC<Props> = ({
                 <button onClick={() => { setIsCaptured(false); startCamera(); }} className="flex-1 py-4 bg-slate-800 text-white font-bold rounded-2xl">重拍</button>
               )}
               <button onClick={handleFinalConfirm} disabled={isProcessing} className="flex-[2] py-4 bg-emerald-500 text-black font-black rounded-2xl shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">
-                {lockedStandard ? '沿用標準紀錄' : '確認紀錄'}
+                {lockedStandard ? '確認紀錄並沿用標準 (SAVE)' : '確認紀錄 (CONFIRM)'}
               </button>
             </div>
           </div>

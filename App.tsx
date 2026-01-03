@@ -110,6 +110,14 @@ export const UNIT_OPTIONS: Record<string, string[]> = {
   diff_pressure: ['Pa', 'kPa', 'MPa'],
   digital_pressure: ['Pa', 'kPa', 'MPa']
 };
+// Helper for UUID generation with fallback
+const generateId = () => {
+  try {
+    return crypto.randomUUID();
+  } catch (e) {
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+};
 
 const App: React.FC = () => {
   const [step, setStep] = useState<AppStep>('QUOTATION_ENTRY');
@@ -235,7 +243,7 @@ const App: React.FC = () => {
       standards: [
         ...prev.standards,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           maker: std.maker,
           model: std.model,
           serial: std.serial_number,
@@ -254,7 +262,7 @@ const App: React.FC = () => {
 
   const handleIdentityComplete = (idData: { maker: string, model: string, serial_number: string, image?: string, equipment_id?: string }) => {
     const newItem: EquipmentItem = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       equipment_id: idData.equipment_id || `EQ-${Date.now()}`,
       identity: { maker: idData.maker, model: idData.model, serial_number: idData.serial_number, image: idData.image },
       measurementTypes: []
@@ -325,7 +333,7 @@ const App: React.FC = () => {
                 if (p.id !== activePointId) return p;
 
                 const commonData = {
-                  id: crypto.randomUUID(),
+                  id: generateId(),
                   value: dutValue,
                   unit,
                   timestamp,
@@ -338,7 +346,7 @@ const App: React.FC = () => {
                   const matched = prev.standards.find(s => s.categories?.includes(t.type));
                   if (matched || stdInfo) {
                     standardData = {
-                      id: crypto.randomUUID(),
+                      id: generateId(),
                       value: stdValue,
                       unit,
                       timestamp,
