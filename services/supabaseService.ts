@@ -164,6 +164,15 @@ export const saveStandardInstrument = async (std: Omit<StandardInstrument, 'id'>
   return data;
 };
 
+export const deleteStandardInstrument = async (id: string) => {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from('standards')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+};
+
 export const saveQuotationTemplate = async (template: QuotationTemplate) => {
   if (!supabase) {
     localStorage.setItem(`template_${template.quotation_no}`, JSON.stringify(template));
@@ -214,4 +223,20 @@ export const listQuotationTemplates = async (): Promise<QuotationTemplate[]> => 
     return keys.map(k => JSON.parse(localStorage.getItem(k)!));
   }
   return data as QuotationTemplate[];
+};
+
+export const deleteQuotationTemplate = async (quotationNo: string) => {
+  if (!supabase) {
+    localStorage.removeItem(`template_${quotationNo}`);
+    return;
+  }
+  const { error } = await supabase
+    .from('quotation_templates')
+    .delete()
+    .eq('quotation_no', quotationNo);
+
+  if (error) {
+    console.warn("Supabase delete failed, falling back to localStorage", error);
+    localStorage.removeItem(`template_${quotationNo}`);
+  }
 };

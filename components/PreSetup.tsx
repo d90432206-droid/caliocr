@@ -6,6 +6,8 @@ import {
     getQuotationTemplate,
     listQuotationTemplates,
     saveStandardInstrument,
+    deleteStandardInstrument,
+    deleteQuotationTemplate,
     StandardInstrument,
     QuotationTemplate
 } from '../services/supabaseService';
@@ -32,8 +34,8 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
         maker: '',
         model: '',
         serial_number: '',
-        categories: [], // Changed to array
-        reports: [{ report_no: '', expiry_date: '' }] // Changed to array of objects
+        categories: [],
+        reports: [{ report_no: '', expiry_date: '' }]
     });
 
     useEffect(() => {
@@ -81,6 +83,20 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
         } catch (err) {
             console.error(err);
             alert("儲存失敗");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDeleteStandard = async (id: string) => {
+        if (!window.confirm("確定要刪除此標準件嗎？")) return;
+        setIsLoading(true);
+        try {
+            await deleteStandardInstrument(id);
+            await loadStandards();
+        } catch (err) {
+            console.error(err);
+            alert("刪除失敗");
         } finally {
             setIsLoading(false);
         }
@@ -156,6 +172,20 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
         }
     };
 
+    const handleDeleteTemplate = async (qNo: string) => {
+        if (!window.confirm(`確定要刪除報價單模板 ${qNo} 嗎？`)) return;
+        setIsLoading(true);
+        try {
+            await deleteQuotationTemplate(qNo);
+            await loadTemplates();
+        } catch (err) {
+            console.error(err);
+            alert("刪除失敗");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const selectTemplate = (tpl: QuotationTemplate) => {
         setQuotationNo(tpl.quotation_no);
         setCustomerName(tpl.customer_name);
@@ -206,23 +236,31 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
                     {viewMode === 'OVERVIEW' && (
                         <div className="space-y-8 animate-in fade-in duration-500">
                             <div className="flex justify-between items-center">
-                                <h2 className="text-3xl font-black italic uppercase italic tracking-tighter">報價單模板列表</h2>
+                                <h2 className="text-3xl font-black italic uppercase tracking-tighter">報價單模板列表</h2>
                                 <button onClick={createNewQuotation} className="px-6 py-3 bg-emerald-600 text-black font-black rounded-xl text-xs uppercase">+ 建立新報價單</button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {templates.map(tpl => (
-                                    <button
-                                        key={tpl.quotation_no}
-                                        onClick={() => selectTemplate(tpl)}
-                                        className="bg-slate-900 border border-slate-800 p-6 rounded-3xl text-left hover:border-emerald-500/50 transition-all group"
-                                    >
-                                        <div className="text-[10px] font-black text-emerald-500 uppercase mb-1">{tpl.quotation_no}</div>
-                                        <div className="text-xl font-black mb-4 group-hover:text-emerald-400 transition-colors">{tpl.customer_name}</div>
-                                        <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                                            <span>包含 {tpl.items?.length || 0} 件設備</span>
-                                            <span className="text-emerald-500 group-hover:translate-x-1 transition-transform">EDIT →</span>
-                                        </div>
-                                    </button>
+                                    <div key={tpl.quotation_no} className="relative group">
+                                        <button
+                                            onClick={() => selectTemplate(tpl)}
+                                            className="w-full bg-slate-900 border border-slate-800 p-6 rounded-3xl text-left hover:border-emerald-500/50 transition-all"
+                                        >
+                                            <div className="text-[10px] font-black text-emerald-500 uppercase mb-1">{tpl.quotation_no}</div>
+                                            <div className="text-xl font-black mb-4 group-hover:text-emerald-400 transition-colors">{tpl.customer_name}</div>
+                                            <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                                                <span>包含 {tpl.items?.length || 0} 件設備</span>
+                                                <span className="text-emerald-500 group-hover:translate-x-1 transition-transform">EDIT →</span>
+                                            </div>
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(tpl.quotation_no); }}
+                                            className="absolute top-4 right-4 p-2 text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                                            title="Delete Template"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
                                 ))}
                                 {templates.length === 0 && (
                                     <div className="col-span-full py-20 text-center bg-slate-900/30 rounded-[3rem] border border-dashed border-slate-800">
@@ -338,7 +376,12 @@ const PreSetup: React.FC<Props> = ({ onBack, onStartCalibration }) => {
                                                     <div className="text-lg font-black text-white italic">{std.maker} {std.model}</div>
                                                     <div className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">{std.serial_number}</div>
                                                 </div>
-                                                <div className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full text-[9px] font-black border border-emerald-500/20 uppercase tracking-widest">ACTIVE</div>
+                                                <div className="flex gap-2">
+                                                    <div className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full text-[9px] font-black border border-emerald-500/20 uppercase tracking-widest">ACTIVE</div>
+                                                    <button onClick={() => handleDeleteStandard(std.id)} className="p-1 text-slate-600 hover:text-rose-500 transition-all">
+                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4 border-t border-slate-800/50 pt-4">
                                                 <div className="col-span-2">
