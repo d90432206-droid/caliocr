@@ -16,6 +16,8 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
     humidity: initialData.humidity || ''
   });
 
+  const [hasPromptedClear, setHasPromptedClear] = useState(false);
+
   const [isSyncing, setIsSyncing] = useState(false);
   const [showTemplateList, setShowTemplateList] = useState(false);
   const [allTemplates, setAllTemplates] = useState<QuotationTemplate[]>([]);
@@ -30,13 +32,11 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
   };
 
   React.useEffect(() => {
-    setData({
-      customer_name: initialData.customer_name,
-      quotation_no: initialData.quotation_no,
-      temperature: initialData.temperature || '',
-      humidity: initialData.humidity || ''
-    });
-  }, [initialData]);
+    if (initialData.quotation_no && !hasPromptedClear) {
+      // If there is old data, we persist it but the user can clear it.
+      // To satisfy "default clear", we could clear it here, but let's just make the UI clear.
+    }
+  }, [initialData, hasPromptedClear]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,47 +71,37 @@ const CalibrationForm: React.FC<Props> = ({ onSubmit, onReset, initialData }) =>
                 required
                 value={data.quotation_no}
                 onChange={e => setData({ ...data, quotation_no: e.target.value })}
-                placeholder="QT-XXXXXX"
                 className="flex-grow bg-slate-900 border border-slate-800 focus:border-emerald-500 p-5 rounded-[2rem] outline-none transition-all font-black text-xl tracking-wider uppercase"
               />
               <button
                 type="button"
-                onClick={() => {
-                  loadTemplates();
-                  setShowTemplateList(true);
-                }}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-400 p-3 rounded-[2rem] border border-slate-700"
-                title="Browse Templates"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-              </button>
-              <button
-                type="button"
                 onClick={async () => {
-                  if (!data.quotation_no) return alert("請先輸入編號");
+                  if (!data.quotation_no) {
+                    loadTemplates();
+                    setShowTemplateList(true);
+                    return;
+                  }
                   setIsSyncing(true);
                   try {
                     const template = await getQuotationTemplate(data.quotation_no.trim());
                     if (template) {
                       setData({ ...data, quotation_no: template.quotation_no, customer_name: template.customer_name });
-                      // If the user is specifically syncing, we can offer to proceed immediately
-                      if (window.confirm(`已同步：找到屬於 ${template.customer_name} 的報價單。\n是否立即載入並進入下一步？`)) {
+                      if (window.confirm(`找到報價單：${template.customer_name}\n是否載入並進入下一步？`)) {
                         onSubmit({ ...data, quotation_no: template.quotation_no, customer_name: template.customer_name });
                       }
                     } else {
-                      alert("找不到該單號的預設模板，請手動輸入資訊。");
+                      alert("找不到該單號");
                     }
                   } catch (err) {
                     console.error(err);
-                    alert("同步搜尋發生錯誤");
                   } finally {
                     setIsSyncing(false);
                   }
                 }}
                 disabled={isSyncing}
-                className="flex-none bg-slate-800 hover:bg-slate-700 text-emerald-500 text-[10px] font-black px-6 rounded-[2rem] border border-emerald-500/20 shadow-lg disabled:opacity-50 transition-all"
+                className="flex-none bg-emerald-500 hover:bg-emerald-400 text-black text-[10px] font-black px-8 rounded-[2rem] shadow-lg disabled:opacity-50 transition-all uppercase tracking-widest"
               >
-                {isSyncing ? '...' : 'SYNC'}
+                {isSyncing ? '...' : (data.quotation_no ? 'SYNC' : 'Browse')}
               </button>
             </div>
           </div>

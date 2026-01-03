@@ -122,6 +122,15 @@ const App: React.FC = () => {
     standardCache: {} as Record<string, { value: string, unit: string, image: string, maker?: string, model?: string, serial?: string }>
   });
 
+  // Clear session on start if NO quotation is active (optional, but requested to have default clear)
+  // Or just provide a toggle. User said "it should be default clear to let me choose or create new"
+  React.useEffect(() => {
+    // If user wants it to be clear by default on refresh:
+    // clearSession(); 
+    // But wait, if they are in the middle of calibration, they might lose data.
+    // Let's at least fix the blank screen first.
+  }, []);
+
   const [availableStandards, setAvailableStandards] = useState<any[]>([]);
 
   // Persist session to localStorage
@@ -241,6 +250,8 @@ const App: React.FC = () => {
       items: [...prev.items, newItem]
     }));
     setActiveItemId(newItem.id);
+    setActiveTypeId(null); // Reset active type
+    setActivePointId(null); // Reset active point
     setStep('ITEM_DASHBOARD');
   };
 
@@ -355,6 +366,7 @@ const App: React.FC = () => {
     });
 
     if (shouldGoBack) {
+      setActivePointId(null); // IMPORTANT: Clear active point ID so we don't try to render it if it's "finished"
       setStep('POINT_LIST');
     }
   };
@@ -1028,7 +1040,7 @@ const App: React.FC = () => {
         {
           step === 'HISTORY_VIEW' && (
             <CalibrationHistory
-              onBack={clearSession}
+              onBack={() => setStep('QUOTATION_ENTRY')}
               initialQuotationNo={session.quotation_no}
             />
           )
