@@ -74,7 +74,7 @@ const InstrumentCapture: React.FC<Props> = ({
     }
     startCamera();
     return () => stream?.getTracks().forEach(t => t.stop());
-  }, [startCamera, lockedStandard, mode, stream]);
+  }, [startCamera, lockedStandard, mode]);
 
   const handleCapture = async (isManual = false) => {
     if (videoRef.current && canvasRef.current) {
