@@ -5,7 +5,8 @@ import CategorySelector from './components/CategorySelector';
 import InstrumentCapture from './components/InstrumentCapture';
 import CalibrationHistory from './components/CalibrationHistory';
 import EquipmentList from './components/EquipmentList';
-import { saveCalibrationRecord, CalibrationRecord } from './services/supabaseService';
+import PreSetup from './components/PreSetup';
+import { saveCalibrationRecord, CalibrationRecord, getQuotationTemplate } from './services/supabaseService';
 
 
 type AppStep =
@@ -22,7 +23,8 @@ type AppStep =
   | 'EDIT_IDENTITY'
   | 'EDIT_READING'
   | 'HISTORY_VIEW'
-  | 'IDENTITY_MANUAL';
+  | 'IDENTITY_MANUAL'
+  | 'PRE_SETUP';
 
 interface StandardInstrument {
   id: string;
@@ -142,19 +144,37 @@ const App: React.FC = () => {
   const activeType = activeItem?.measurementTypes.find(t => t.id === activeTypeId);
   const activePoint = activeType?.points.find(p => p.id === activePointId);
 
-  const handleQuotationSubmit = (data: { customer_name: string, quotation_no: string, temperature: string, humidity: string }) => {
-    setSession(prev => ({
-      ...prev,
-      quotation_no: data.quotation_no,
-      customer_name: data.customer_name,
-      temperature: data.temperature,
-      humidity: data.humidity
-    }));
-    localStorage.setItem('quotation_no', data.quotation_no);
-    localStorage.setItem('customer_name', data.customer_name);
-    localStorage.setItem('env_temperature', data.temperature);
-    localStorage.setItem('env_humidity', data.humidity);
-    setStep('STANDARD_SETUP');
+  const handleQuotationSubmit = async (data: { customer_name: string, quotation_no: string, temperature: string, humidity: string }) => {
+    setIsSyncing(true);
+    try {
+      const template = await getQuotationTemplate(data.quotation_no);
+      if (template) {
+        setSession(prev => ({
+          ...prev,
+          quotation_no: template.quotation_no,
+          customer_name: template.customer_name,
+          temperature: data.temperature,
+          humidity: data.humidity,
+          items: template.items.map((it: any) => ({
+            ...it,
+            identity: { maker: it.maker, model: it.model, serial_number: it.serial_number }
+          }))
+        }));
+      } else {
+        setSession(prev => ({
+          ...prev,
+          quotation_no: data.quotation_no,
+          customer_name: data.customer_name,
+          temperature: data.temperature,
+          humidity: data.humidity
+        }));
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setIsSyncing(false);
+      setStep('STANDARD_SETUP');
+    }
   };
 
   const clearSession = () => {
@@ -248,15 +268,12 @@ const App: React.FC = () => {
 
   // Handle Reading Capture (Standard or DUT)
   // Updated signature to accept standard info
-  const handleReadingCapture = (value: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string, model: string, serial: string }) => {
+  const handleReadingCapture = (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string, model: string, serial: string }) => {
     if (!activeItem || !activeType || !activePoint) return;
 
     let shouldGoBack = false;
 
     setSession(prev => {
-      // Determine if we are capturing the standard or a regular reading
-      const isCapturingStandard = !activePoint.standard;
-
       const newItems = prev.items.map(item => {
         if (item.id !== activeItemId) return item;
         return {
@@ -270,46 +287,49 @@ const App: React.FC = () => {
 
                 const commonData = {
                   id: crypto.randomUUID(),
-                  value,
+                  value: dutValue,
                   unit,
                   timestamp,
                   image
                 };
 
-                if (isCapturingStandard) {
-                  return { ...p, standard: { ...commonData, seq: 0, ...stdInfo } };
-                } else {
-                  const newLength = p.readings.length + 1;
-                  if (newLength >= t.maxReadings) {
-                    shouldGoBack = true;
-                  }
-                  // Attach current standard info to the DUT reading
-                  return {
-                    ...p,
-                    readings: [
-                      ...p.readings,
-                      {
-                        ...commonData,
-                        seq: newLength,
-                        maker: p.standard?.maker,
-                        model: p.standard?.model,
-                        serial: p.standard?.serial
-                      }
-                    ]
-                  };
+                // In the new dual flow, we save both at once
+                const standardData = {
+                  id: crypto.randomUUID(),
+                  value: stdValue,
+                  unit,
+                  timestamp,
+                  image,
+                  seq: 0,
+                  ...stdInfo
+                };
+
+                const newLength = p.readings.length + 1;
+                if (newLength >= t.maxReadings) {
+                  shouldGoBack = true;
                 }
+
+                return {
+                  ...p,
+                  standard: standardData,
+                  readings: [
+                    ...p.readings,
+                    {
+                      ...commonData,
+                      seq: newLength,
+                      maker: stdInfo?.maker || p.standard?.maker,
+                      model: stdInfo?.model || p.standard?.model,
+                      serial: stdInfo?.serial || p.standard?.serial
+                    }
+                  ]
+                };
               })
             };
           })
         };
       });
 
-      const newCache = { ...prev.standardCache };
-      if (isCapturingStandard) {
-        newCache[`${activeType.type}_${activePoint.targetValue}`] = { value, unit, image, ...stdInfo };
-      }
-
-      return { ...prev, items: newItems, standardCache: newCache };
+      return { ...prev, items: newItems };
     });
 
     if (shouldGoBack) {
@@ -411,10 +431,15 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           <button
+            onClick={() => setStep('PRE_SETUP')}
+            className="hidden md:flex items-center gap-2 text-[10px] font-black text-amber-500 bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/20 hover:bg-amber-500/20 transition-all"
+          >
+            事前作業 Pre-Setup
+          </button>
+          <button
             onClick={() => setStep('HISTORY_VIEW')}
             className="hidden md:flex items-center gap-2 text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20 hover:bg-emerald-500/20 transition-all"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             歷史記錄查詢
           </button>
           <div className="text-[10px] font-bold text-slate-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
@@ -578,6 +603,16 @@ const App: React.FC = () => {
               確認並進行校正
             </button>
           </div>
+        )}
+
+        {step === 'PRE_SETUP' && (
+          <PreSetup
+            onBack={() => setStep('QUOTATION_ENTRY')}
+            onStartCalibration={(q) => {
+              setSession(prev => ({ ...prev, quotation_no: q }));
+              setStep('QUOTATION_ENTRY');
+            }}
+          />
         )}
 
         {step === 'ITEM_DASHBOARD' && activeItem && (
@@ -778,32 +813,50 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               {activeType.points.map(p => (
-                <div
+                <button
                   key={p.id}
                   onClick={() => { setActivePointId(p.id); setStep('READING_CAPTURE'); }}
-                  className="bg-slate-900/50 border border-slate-800 p-6 rounded-[2rem] flex justify-between items-center active:bg-slate-800 transition-all active:scale-[0.98]"
+                  className={`relative overflow-hidden group p-5 rounded-[2.5rem] border-2 transition-all active:scale-95 text-left flex flex-col justify-between h-48 ${p.readings.length >= activeType.maxReadings
+                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                    : p.readings.length > 0
+                      ? 'bg-amber-500/5 border-amber-500/20'
+                      : 'bg-slate-900 border-slate-800'
+                    }`}
                 >
-                  <div className="flex-grow">
-                    <div className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-widest">Target Value</div>
-                    <div className="text-3xl font-black text-white italic">
+                  <div className="flex justify-between items-start">
+                    <div className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                      {p.frequency || 'Standard Point'}
+                    </div>
+                    {p.readings.length >= activeType.maxReadings && (
+                      <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-black">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="text-3xl font-black text-white italic tracking-tighter mb-1">
                       {p.targetValue}
-                      <span className="text-xs text-slate-500 font-medium ml-1 not-italic">{p.unit}</span>
-                      {p.frequency && <span className="text-xs text-emerald-500 font-bold ml-2 not-italic">@{p.frequency}</span>}
+                      <span className="text-[10px] text-slate-500 font-bold ml-1 not-italic">{p.unit}</span>
                     </div>
-                    <div className="mt-4 flex gap-1.5 flex-wrap">
-                      {Array.from({ length: activeType.maxReadings }).map((_, i) => (
-                        <div key={i} className={`w-2 h-1.5 rounded-full transition-all ${p.readings.length > i ? 'bg-emerald-500 w-4 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
-                      ))}
-                    </div>
+                    {p.readings.length > 0 ? (
+                      <div className="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                        已記錄 {p.readings[p.readings.length - 1].value}{p.unit}
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-bold text-slate-600 uppercase">尚未校正</div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/20 uppercase tracking-widest">
-                      {p.readings.length}/{activeType.maxReadings}
-                    </div>
+
+                  <div className="flex gap-1">
+                    {Array.from({ length: activeType.maxReadings }).map((_, i) => (
+                      <div key={i} className={`h-1.5 rounded-full flex-grow transition-all ${p.readings.length > i ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-800'}`}></div>
+                    ))}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

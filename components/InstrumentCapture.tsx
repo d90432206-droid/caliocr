@@ -6,7 +6,7 @@ import { analyzeInstrument } from '../services/apiService';
 interface Props {
   mode: 'identity' | 'reading';
   type?: string;
-  onReadingConfirm?: (value: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string }) => void;
+  onReadingConfirm?: (stdValue: string, dutValue: string, unit: string, timestamp: string, image: string, stdInfo?: { maker: string; model: string; serial: string }) => void;
   onIdentityConfirm?: (data: { maker: string; model: string; serial_number: string, image?: string }) => void;
   onBack: () => void;
   currentIndex?: number;
@@ -30,7 +30,7 @@ const InstrumentCapture: React.FC<Props> = ({
 
   // 編輯表單狀態
   const [formData, setFormData] = useState({
-    value: '', unit: '', maker: '', model: '', serial_number: ''
+    std_value: '', value: '', unit: '', maker: '', model: '', serial_number: ''
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -149,6 +149,7 @@ const InstrumentCapture: React.FC<Props> = ({
   const handleFinalConfirm = () => {
     if (mode === 'reading' && onReadingConfirm && capturedImage) {
       onReadingConfirm(
+        formData.std_value || formData.value, // Use std_value if available, else fallback
         formData.value,
         formData.unit,
         new Date().toISOString(),
@@ -253,14 +254,29 @@ const InstrumentCapture: React.FC<Props> = ({
 
             {mode === 'reading' ? (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] text-slate-500 font-bold">辨識數值</label>
-                  <input
-                    type="text"
-                    value={formData.value}
-                    onChange={e => setFormData({ ...formData, value: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 p-4 rounded-2xl text-3xl font-black text-emerald-400 outline-none focus:border-emerald-500"
-                  />
+                <div className="space-y-4 col-span-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-blue-500 font-black uppercase tracking-widest">標準器讀數 Standard Value</label>
+                      <input
+                        type="text"
+                        value={formData.std_value}
+                        onChange={e => setFormData({ ...formData, std_value: e.target.value })}
+                        placeholder="Standard"
+                        className="w-full bg-slate-950 border border-blue-500/30 p-4 rounded-2xl text-2xl font-black text-blue-400 outline-none focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">待校件讀數 DUT Value</label>
+                      <input
+                        type="text"
+                        value={formData.value}
+                        onChange={e => setFormData({ ...formData, value: e.target.value })}
+                        placeholder="DUT"
+                        className="w-full bg-slate-950 border border-emerald-500/30 p-4 rounded-2xl text-2xl font-black text-emerald-400 outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] text-slate-500 font-bold">單位</label>

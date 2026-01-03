@@ -37,6 +37,20 @@ export interface CalibrationRecord {
   created_at: string;
 }
 
+export interface StandardInstrument {
+  id: string;
+  maker: string;
+  model: string;
+  serial_number: string;
+  image_url?: string;
+}
+
+export interface QuotationTemplate {
+  quotation_no: string;
+  customer_name: string;
+  items: any[]; // High-level structure for pre-setup items
+}
+
 export const saveCalibrationRecord = async (record: CalibrationRecord) => {
   if (!supabase) {
     console.error("Supabase 未設定，無法儲存紀錄。");
@@ -119,4 +133,60 @@ export const getRecordsByQuotation = async (quotationNo: string): Promise<Calibr
   }
 
   return data as CalibrationRecord[];
+};
+
+export const getStandardInstruments = async (): Promise<StandardInstrument[]> => {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from('standards')
+    .select('*');
+  if (error) {
+    console.warn("Could not fetch standards, using empty list:", error);
+    return [];
+  }
+  return data as StandardInstrument[];
+};
+
+export const saveStandardInstrument = async (std: Omit<StandardInstrument, 'id'>) => {
+  if (!supabase) return;
+  const { data, error } = await supabase
+    .from('standards')
+    .insert([std])
+    .select();
+  if (error) throw error;
+  return data;
+};
+
+export const saveQuotationTemplate = async (template: QuotationTemplate) => {
+  if (!supabase) {
+    localStorage.setItem(`template_${template.quotation_no}`, JSON.stringify(template));
+    return;
+  }
+  const { data, error } = await supabase
+    .from('quotation_templates')
+    .upsert([template], { onConflict: 'quotation_no' })
+    .select();
+  if (error) {
+    console.warn("Supabase upsert failed, falling back to localStorage", error);
+    localStorage.setItem(`template_${template.quotation_no}`, JSON.stringify(template));
+  }
+  return data;
+};
+
+export const getQuotationTemplate = async (quotationNo: string): Promise<QuotationTemplate | null> => {
+  if (!supabase) {
+    const local = localStorage.getItem(`template_${quotationNo}`);
+    return local ? JSON.parse(local) : null;
+  }
+  const { data, error } = await supabase
+    .from('quotation_templates')
+    .select('*')
+    .eq('quotation_no', quotationNo)
+    .single();
+
+  if (error) {
+    const local = localStorage.getItem(`template_${quotationNo}`);
+    return local ? JSON.parse(local) : null;
+  }
+  return data as QuotationTemplate;
 };
