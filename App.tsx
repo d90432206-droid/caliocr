@@ -139,13 +139,21 @@ const App: React.FC = () => {
     if (session.humidity) localStorage.setItem('env_humidity', session.humidity);
   }, [session.temperature, session.humidity]);
 
+  const refreshAvailableStandards = async () => {
+    const stds = await getStandardInstruments();
+    setAvailableStandards(stds || []);
+  };
+
   React.useEffect(() => {
-    const loadAll = async () => {
-      const stds = await getStandardInstruments();
-      setAvailableStandards(stds || []);
-    };
-    loadAll();
+    refreshAvailableStandards();
   }, []);
+
+  // Re-fetch when entering setup steps to ensure data is fresh
+  React.useEffect(() => {
+    if (step === 'STANDARD_SETUP' || step === 'PRE_SETUP') {
+      refreshAvailableStandards();
+    }
+  }, [step]);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeTypeId, setActiveTypeId] = useState<string | null>(null);
@@ -554,7 +562,10 @@ const App: React.FC = () => {
             <div className="flex flex-col gap-4 mt-auto">
               {availableStandards.length > 0 && (
                 <div className="space-y-3 mb-6">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">快速從資料庫挑選標配 (QUICK SELECT)</label>
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">快速從資料庫挑選標配 (QUICK SELECT)</label>
+                    <button onClick={refreshAvailableStandards} className="text-[9px] font-black text-emerald-500 hover:text-emerald-400">重新整理庫存 REFRESH</button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {availableStandards.map(std => {
                       const isSelected = session.standards.some(s => s.serial === std.serial_number);
@@ -575,7 +586,7 @@ const App: React.FC = () => {
                               });
                             }
                           }}
-                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isSelected ? 'bg-blue-500 text-white border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700'}`}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${isSelected ? 'bg-emerald-500 text-black border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.3)]' : 'bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-700'}`}
                         >
                           {std.maker} {std.model} ({std.serial_number})
                         </button>
